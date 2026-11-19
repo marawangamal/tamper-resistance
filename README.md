@@ -15,9 +15,8 @@ before downloading the data.
 git clone https://github.com/marawangamal/tamper-resistance.git
 cd tamper-resistance
 
-# Training and evaluation need separate environments.
-UV_PROJECT_ENVIRONMENT=.venv-train uv sync --frozen --group train
-UV_PROJECT_ENVIRONMENT=.venv-eval uv sync --frozen --group eval
+# Install training and evaluation dependencies.
+uv sync --frozen
 ```
 
 Run commands from this repository root. The project can also be checked out as

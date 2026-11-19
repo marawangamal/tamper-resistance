@@ -31,7 +31,7 @@ export UV_LINK_MODE=copy
 model_name_or_path=${1:?missing model name or path}
 
 eval_env="$UV_PROJECT_ENVIRONMENT-eval"
-UV_PROJECT_ENVIRONMENT="$eval_env" uv sync --frozen --group eval
+UV_PROJECT_ENVIRONMENT="$eval_env" uv sync --frozen
 
 results_dir="./artifacts/tamia/results-header-ablation/${model_name_or_path}"
 

@@ -44,8 +44,8 @@ trial_count=${2:-10}
 
 train_env="$UV_PROJECT_ENVIRONMENT-train"
 eval_env="$UV_PROJECT_ENVIRONMENT-eval"
-UV_PROJECT_ENVIRONMENT="$train_env" uv sync --frozen --group train
-UV_PROJECT_ENVIRONMENT="$eval_env" uv sync --frozen --group eval
+UV_PROJECT_ENVIRONMENT="$train_env" uv sync --frozen
+UV_PROJECT_ENVIRONMENT="$eval_env" uv sync --frozen
 export PATH="$train_env/bin:$PATH"
 export EVAL_ACCELERATE="$eval_env/bin/accelerate"
 

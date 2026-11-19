@@ -45,8 +45,8 @@ model_name=${3:?missing model name} # e.g., z7b
 
 train_env="$UV_PROJECT_ENVIRONMENT-train"
 eval_env="$UV_PROJECT_ENVIRONMENT-eval"
-UV_PROJECT_ENVIRONMENT="$train_env" uv sync --frozen --group train
-UV_PROJECT_ENVIRONMENT="$eval_env" uv sync --frozen --group eval
+UV_PROJECT_ENVIRONMENT="$train_env" uv sync --frozen
+UV_PROJECT_ENVIRONMENT="$eval_env" uv sync --frozen
 
 
 defence_learning_rates=(1e-6 2e-6 3e-6 5e-6)

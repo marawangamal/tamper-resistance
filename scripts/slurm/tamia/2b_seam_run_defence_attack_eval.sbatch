@@ -17,8 +17,6 @@ set -euo pipefail
 export PATH="$HOME/.local/bin:$PATH"
 export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
 export HF_HOME="$SCRATCH/.cache/huggingface"
-defence_env="$PWD/.venv"
-attack_env="$SLURM_TMPDIR/.venv-attack-$SLURM_JOB_ID"
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export UV_OFFLINE=1
 export UV_LINK_MODE=copy
@@ -35,8 +33,11 @@ export WANDB_MODE=offline
 # ============================================
 
 # Setup
-# Keep the existing SEAM defense environment; create only the attack/eval environment.
-UV_PROJECT_ENVIRONMENT="$attack_env" uv sync --frozen --only-group attack
+project_dir="$PWD"
+defence_env="$SLURM_TMPDIR/.venv-defence-$SLURM_JOB_ID"
+attack_env="$SLURM_TMPDIR/.venv-attack-$SLURM_JOB_ID"
+UV_PROJECT_ENVIRONMENT="$defence_env" uv sync --project seam --frozen
+UV_PROJECT_ENVIRONMENT="$attack_env" uv sync --frozen
 export WANDB_DIR="$PWD/artifacts/tamia"
 mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
@@ -54,8 +55,8 @@ attack_learning_rates=(5e-5 8e-5 1e-4 2e-4)
 attack_max_steps=(5 10 50 100)
 
 index=${SLURM_ARRAY_TASK_ID:?submit with sbatch}
-defence_up_coefficient=${DEFENCE_UP_COEFFS[index / ${#DEFENCE_SD_COEFFS[@]}]}
-defence_sd_coefficient=${DEFENCE_SD_COEFFS[index % ${#DEFENCE_SD_COEFFS[@]}]}
+defence_up_coeff=${DEFENCE_UP_COEFFS[index / ${#DEFENCE_SD_COEFFS[@]}]}
+defence_sd_coeff=${DEFENCE_SD_COEFFS[index % ${#DEFENCE_SD_COEFFS[@]}]}
 
 # Get defence/attack separators used
 case "$defence_separator" in
@@ -63,7 +64,7 @@ case "$defence_separator" in
     ' ') defence_separator_abbrv=sp ;;
     *) echo "Defence separator must be a newline or a space" >&2; exit 1 ;;
 esac
-attack_separator_abbrv=$("$defence_env/bin/python" -c '
+attack_separator_abbrv=$("$attack_env/bin/python" -c '
 import sys
 import yaml
 with open(sys.argv[1]) as handle:
@@ -74,7 +75,7 @@ print({" ": "sp", "\n": "nl"}[separator])
 
 
 # Set defence model name
-defence_model_name="llama2-7b-beavertail--align-fft-seam--def-$defence_separator_abbrv--coeff-sd$defence_sd_coefficient--coeff-up$defence_up_coefficient"
+defence_model_name="llama2-7b-beavertail--align-fft-seam--def-$defence_separator_abbrv--coeff-sd$defence_sd_coeff--coeff-up$defence_up_coeff"
 defence_model_path="artifacts/tamia/models/$defence_model_name/checkpoint-500"
 
 # ================================================================================
@@ -111,14 +112,18 @@ done
 
 # Defence.
 export CUDA_VISIBLE_DEVICES=0,1,2,3
-PYTHONHASHSEED=0 "$defence_env/bin/python" -m src.train \
-    --config "$defence_config" \
-    --output_dir "artifacts/tamia/models/$defence_model_name" \
-    --wandb_run_name "$defence_model_name" \
-    --harmful_response_separator "$defence_separator" \
-    --alpha "$defence_up_coefficient" \
-    --beta "$defence_sd_coefficient" \
-    --save_total_limit 1
+defence_config=$(realpath -- "$defence_config")
+(
+    cd "$project_dir/seam"
+    PYTHONHASHSEED=0 "$defence_env/bin/python" -m src.train \
+        --config "$defence_config" \
+        --output_dir "$project_dir/artifacts/tamia/models/$defence_model_name" \
+        --wandb_run_name "$defence_model_name" \
+        --harmful_response_separator "$defence_separator" \
+        --alpha "$defence_up_coeff" \
+        --beta "$defence_sd_coeff" \
+        --save_total_limit 1
+)
 
 # Defence evaluation before the attacks.
 "$attack_env/bin/python" -m src.evaluation \
