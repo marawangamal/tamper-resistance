@@ -58,6 +58,12 @@ Training scripts remove model weights after successful evaluations. Evaluation
 results and figures are versioned; environments, weights, logs, and caches are
 ignored. A cluster checkout can symlink `artifacts` to shared project storage.
 
+Compare the selected SEAM and RepNoise defenses across attack steps and LRs:
+
+```bash
+python scripts/misc/plot_seam_repnoise_trajectory.py
+```
+
 ## Tests
 
 ```bash
