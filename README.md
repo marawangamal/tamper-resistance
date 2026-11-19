@@ -40,8 +40,8 @@ Follow each submodule's README for its own environment and experiment commands.
 
 ### Training and evaluation
 
-Defence configs are in `configs/stages/0_unlearn/`, relearning configs are in
-`configs/stages/1_relearn/`, and W&B sweep configs are in `configs/sweeps/`.
+Defence configs are in `configs/wmdp/stages/0_unlearn/`, relearning configs are in
+`configs/wmdp/stages/1_relearn/`, and W&B sweep configs are in `configs/wmdp/sweeps/`.
 See [hyperparameter searches and results](docs/hpo.md) for settings, selection
 criteria, and sweep usage.
 
@@ -51,8 +51,8 @@ For a fixed GD+SAM defence and relearning sweep on Tamia:
 mkdir -p artifacts/tamia/logs
 sbatch --partition=gpubase_bynode_b1 \
   scripts/slurm/tamia/run_unlearn_relearn_eval.sbatch \
-  configs/stages/0_unlearn/z7b-wmdp-bio--unlearn-fft-gd-sam-rho1e-2.yml \
-  configs/stages/1_relearn/z7b-wmdp-bio--relearn-20.yml \
+  configs/wmdp/stages/0_unlearn/z7b-wmdp-bio--unlearn-fft-gd-sam-rho1e-2.yml \
+  configs/wmdp/stages/1_relearn/z7b-wmdp-bio--relearn-20.yml \
   z7b-gd-sam
 ```
 

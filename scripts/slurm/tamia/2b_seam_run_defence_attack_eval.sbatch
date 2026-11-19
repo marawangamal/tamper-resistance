@@ -42,7 +42,7 @@ export WANDB_DIR="$PWD/artifacts/tamia"
 mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
 # Inputs
-defence_config="configs/seam/train-paper.yaml"
+defence_config="configs/beavertails/seam/train-paper.yaml"
 attack_config=${1:?usage: 2b_seam_run_defence_attack_eval.sbatch ATTACK_CONFIG [DEFENCE_SEPARATOR]}
 defence_separator=${2:-$' '}
 
