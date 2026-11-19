@@ -42,9 +42,9 @@ export WANDB_DIR="$PWD/artifacts/tamia"
 mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
 # Inputs
-defence_config=${1:?usage: run_defence_sweep.sbatch DEFENCE_CONFIG ATTACK_CONFIG [DEFENCE_SEPARATOR]}
-attack_config=${2:?missing attack config}
-defence_separator=${3:-$' '}
+defence_config="configs/seam/train-paper.yaml"
+attack_config=${1:?usage: 2a_seam_run_defence_sweep.sbatch ATTACK_CONFIG [DEFENCE_SEPARATOR]}
+defence_separator=${2:-$' '}
 
 # Inter-job sweep
 DEFENCE_UP_COEFFS=(0.1 1.0 5.0) # Utility preservation weight (default: 1.0)
@@ -126,7 +126,7 @@ defence_config=$(realpath -- "$defence_config")
 )
 
 # Defence evaluation before the attacks.
-"$attack_env/bin/python" -m src.evaluation \
+"$attack_env/bin/python" -m src.evals.evaluation \
     --model "$defence_model_path" \
     --results-path "artifacts/tamia/evals/$defence_model_name/results-1000.json" \
     --utility-samples 1000
@@ -144,7 +144,7 @@ for max_steps in "${attack_max_steps[@]}"; do
                 --output-dir "artifacts/tamia/models/$attack_model_name" \
                 --learning-rate "$attack_lr" \
                 --max-steps "$max_steps"
-            "$attack_env/bin/python" -m src.evaluation \
+            "$attack_env/bin/python" -m src.evals.evaluation \
                 --model "artifacts/tamia/models/$attack_model_name" \
                 --results-path "artifacts/tamia/evals/$attack_model_name/results-1000.json" \
                 --utility-samples 1000

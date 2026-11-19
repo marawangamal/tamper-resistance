@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=0
 #SBATCH --time=03:00:00
-#SBATCH --array=0-11
+#SBATCH --array=0-8
 set -euo pipefail
 
 # ============================================
@@ -125,7 +125,7 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3
 )
 
 # Defence evaluation before the attacks.
-"$attack_env/bin/python" -m src.evaluation \
+"$attack_env/bin/python" -m src.evals.evaluation \
     --model "$defence_model_path" \
     --results-path "artifacts/tamia/evals/$defence_model_name/results-1000.json" \
     --utility-samples 1000
@@ -143,7 +143,7 @@ for max_steps in "${attack_max_steps[@]}"; do
                 --output-dir "artifacts/tamia/models/$attack_model_name" \
                 --learning-rate "$attack_lr" \
                 --max-steps "$max_steps"
-            "$attack_env/bin/python" -m src.evaluation \
+            "$attack_env/bin/python" -m src.evals.evaluation \
                 --model "artifacts/tamia/models/$attack_model_name" \
                 --results-path "artifacts/tamia/evals/$attack_model_name/results-1000.json" \
                 --utility-samples 1000
