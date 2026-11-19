@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv*/
+.env
+.cache/
+build/
+dist/
+*.egg-info/
+wandb/
+artifacts/tamia/models/
+artifacts/tamia/logs/
+artifacts/tamia/cache/

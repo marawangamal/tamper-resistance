@@ -1,61 +1,65 @@
 # Tamper Resistance
 
-## Prerequisites
+Unlearning and relearning experiments for Zephyr-7B on WMDP-Bio, including GD,
+NPO, SAM, and GMA. This standalone project was extracted from
+[`lilpipe/examples/tamper-resistance-v2`](https://github.com/marawangamal/lilpipe)
+with its code, evaluation results, figures, and project history.
 
-- Request access to [`cais/wmdp-bio-forget-corpus`](https://huggingface.co/datasets/cais/wmdp-bio-forget-corpus)
-- Update setups in the runner scripts `scripts/slurm/tamia`
+## Setup
 
-The original Tamia workflows use six supported Slurm entry points. WMDP-Bio robust and MMLU-no-bio
-run in one paired job, and each trajectory runs in one allocation. See
-[Tamia interfaces and retired-file inventory](docs/tamia-refactor.md) for arguments,
-checkpoint selection, and opt-in trajectory deletion. Regenerate older HPO
-manifests before using them with the consolidated scripts.
+Use Python 3.12 and [uv](https://docs.astral.sh/uv/). Request access to
+[`cais/wmdp-bio-forget-corpus`](https://huggingface.co/datasets/cais/wmdp-bio-forget-corpus)
+before downloading the data.
 
-Mila uses four supported scripts for training, BeaverTails single-model or
-checkpoint evaluation, and parameter-norm analysis. See [Mila interfaces and retired-file inventory](docs/mila-refactor.md).
+```bash
+git clone https://github.com/marawangamal/tamper-resistance.git
+cd tamper-resistance
 
-For the authors' SEAM defence and relearning sweep, see the
-[SEAM scripts and artifact layout](docs/seam.md).
-
-## Quickstart
-
-```sh
-# 0. Setup
-cd examples/tamper-resistance-v2
-# NOTE: Training and eval use diff uv envs due to incompatible dependencies
-UV_PROJECT_ENVIRONMENT=.venv-train uv sync --locked --group train
-UV_PROJECT_ENVIRONMENT=.venv-eval uv sync --locked --group eval
-
-# 2. Run a selected 5pp unlearning method
-source .venv-train/bin/activate
-axolotl train configs/stages/0_unlearn/z7b-wmdp-bio--5pp--unlearn-fft-rmu/selected.yml
-
-# 3. Run relearning
-source .venv-train/bin/activate
-axolotl train configs/stages-wmdp/2_relearn/z7b-wmdp-bio--5pp--unlearn-fft-rmu--relearn-fft/selected.yml
-
-# 4. Run eval on final ckpt
-source .venv-eval/bin/activate
-CHECKPOINT=artifacts/tamia/models/z7b-wmdp-bio--5pp--unlearn-fft-rmu--relearn-fft/checkpoint-16
-OUTPUT=artifacts/tamia/evals/z7b-wmdp-bio--5pp--unlearn-fft-rmu--relearn-fft/checkpoint-16
-accelerate launch --num_processes=1 -m lm_eval run \
-  --model hf \
-  --model_args "pretrained=$CHECKPOINT,dtype=bfloat16,trust_remote_code=True" \
-  --include_path lm_eval_tasks \
-  --tasks wmdp_bio_robust,mmlu_no_bio \
-  --num_fewshot 0 \
-  --batch_size 32 \
-  --output_path $OUTPUT
-
-# 5. Plot the Zephyr-7B relearning trajectory after the jobs finish
-# Note: run the above eval for every ckpt in the relearning trajectory before
-# running the plotting code
-source .venv-eval/bin/activate
-python scripts/analysis/relearning-trajectory/plot_trajectory_wmdp.py \
-  --plot main \
-  --output artifacts/figures/z7b-wmdp-mmlu-relearning-trajectory--5pp.pdf
+# Training and evaluation need separate environments.
+UV_PROJECT_ENVIRONMENT=.venv-train uv sync --frozen --group train
+UV_PROJECT_ENVIRONMENT=.venv-eval uv sync --frozen --group eval
 ```
 
+Run commands from this repository root. The project can also be checked out as
+the `examples/tamper-resistance-v2` submodule in lilpipe; use that directory as
+the working directory in that case. No parent lilpipe checkout is required.
 
-```sh
+## Experiments
+
+Defence configs are in `configs/stages/0_unlearn/`, relearning configs are in
+`configs/stages/1_relearn/`, and W&B sweep configs are in `configs/sweeps/`.
+See [hyperparameter searches and results](docs/hpo.md) for settings, selection
+criteria, and sweep usage.
+
+For a fixed GD+SAM defence and relearning sweep on Tamia:
+
+```bash
+mkdir -p artifacts/tamia/logs
+sbatch --partition=gpubase_bynode_b1 \
+  scripts/slurm/tamia/run_unlearn_relearn_eval.sbatch \
+  configs/stages/0_unlearn/z7b-wmdp-bio--unlearn-fft-gd-sam-rho1e-2.yml \
+  configs/stages/1_relearn/z7b-wmdp-bio--relearn-20.yml \
+  z7b-gd-sam
+```
+
+The Slurm scripts create separate training and evaluation environments and use
+offline caches on compute nodes. Review their cluster paths, resource requests,
+and cache setup before submitting on another system. W&B sweeps use the
+configured HTTP proxy to reach W&B.
+
+## Artifacts
+
+Models, evaluation JSONs, and Slurm logs use `artifacts/tamia/{models,results,logs}/`.
+Plots use `artifacts/figures/` for PDFs and `artifacts/figures-png/` for PNGs.
+Historical evaluations remain in `artifacts/tamia/results-in-distribution/`,
+`results-out-of-distribution/`, and `results-header-ablation/`.
+
+Training scripts remove model weights after successful evaluations. Evaluation
+results and figures are versioned; environments, weights, logs, and caches are
+ignored. A cluster checkout can symlink `artifacts` to shared project storage.
+
+## Tests
+
+```bash
+uv run --frozen --group test pytest tests
 ```

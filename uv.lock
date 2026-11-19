@@ -1428,6 +1428,15 @@ wheels = [
 ]
 
 [[package]]
+name = "iniconfig"
+version = "2.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/01/e1/2069291243c926a2ff1cd706c7f3eeb9b62144bf60f77c9fb9ff2fb26bd3/iniconfig-2.3.1.tar.gz", hash = "sha256:67f4b9c50da0dedf52af349e7749a80a9057a5031199791b906c3bb3ae878960", size = 21209, upload-time = "2026-10-06T22:48:38.076Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/56/43/4ca9e49d27a1fcf6bece6f6aec0ea46bb9112489b93d4b688fb415457bdb/iniconfig-2.3.1-py3-none-any.whl", hash = "sha256:9121e2c1fdb355232495be3194c8dfe87ccc2d5dee45947b78e68f499790d7a7", size = 7552, upload-time = "2026-10-06T22:48:36.959Z" },
+]
+
+[[package]]
 name = "isodate"
 version = "0.7.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1627,65 +1636,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/41/d6/85f032b40fc30c969
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7c/6b/eb29b56f128a819e2cded552e293212c57daa949481206b82490b207deac/liger_kernel-0.8.0-py3-none-any.whl", hash = "sha256:e1f03eeb4ba6a6a413d585dacf92c4c15d164bab5844fa4ead2fede6bcac469c", size = 403120, upload-time = "2026-04-30T23:02:13.443Z" },
 ]
-
-[[package]]
-name = "lilpipe"
-version = "0.3.0"
-source = { editable = "../../" }
-dependencies = [
-    { name = "pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "black", extras = ["jupyter"], marker = "extra == 'dev'", specifier = ">=24.0" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-]
-provides-extras = ["test", "dev"]
-
-[[package]]
-name = "lilpipe-tamper-resistance-v2"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "lilpipe" },
-]
-
-[package.dev-dependencies]
-eval = [
-    { name = "lm-eval", extra = ["hf"] },
-    { name = "matplotlib" },
-    { name = "protobuf" },
-    { name = "pyhessian" },
-    { name = "seaborn" },
-    { name = "sentencepiece" },
-]
-train = [
-    { name = "axolotl" },
-    { name = "sentencepiece" },
-]
-unlearn = [
-    { name = "unlearning" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "lilpipe", editable = "../../" }]
-
-[package.metadata.requires-dev]
-eval = [
-    { name = "lm-eval", extras = ["hf"], specifier = "==0.4.11" },
-    { name = "matplotlib", specifier = ">=3.9,<4" },
-    { name = "protobuf", specifier = ">=6,<7" },
-    { name = "pyhessian", git = "https://github.com/amirgholami/PyHessian.git?rev=de8cf239ace21c7754ee599255897ebf3eed19cb" },
-    { name = "seaborn", specifier = ">=0.13,<0.14" },
-    { name = "sentencepiece", specifier = ">=0.2,<0.3" },
-]
-train = [
-    { name = "axolotl", specifier = "==0.18.0" },
-    { name = "sentencepiece", specifier = ">=0.2,<0.3" },
-]
-unlearn = [{ name = "unlearning", git = "https://github.com/EleutherAI/unlearn.git?rev=0f6488f15e49686bc7ddf0d8d90030c30780dc51" }]
 
 [[package]]
 name = "llvmlite"
@@ -2543,6 +2493,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pluggy"
+version = "1.7.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bf/db/7fc19e6f2dc92a966727031389fc2e08b558f0f25eb7403c1119ad4713cd/pluggy-1.7.0.tar.gz", hash = "sha256:d1eaa46ebb595891b860ab086b4d09c8588af65ebd4361b8e8f4bb8920b90ba8", size = 123304, upload-time = "2026-10-15T09:50:58.343Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/9e/2b38731e0fc536806f16490e1a12d7f0dc2a1235aa8cc07bcc75416a7daa/pluggy-1.7.0-py3-none-any.whl", hash = "sha256:7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec", size = 27082, upload-time = "2026-10-15T09:50:56.808Z" },
+]
+
+[[package]]
 name = "portalocker"
 version = "4.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2841,6 +2800,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f6/a1/617730f290f04d347103ab40bf67d317df6691b14746f6e1ea039fb57062/pytablewriter-1.2.1.tar.gz", hash = "sha256:7bd0f4f397e070e3b8a34edcf1b9257ccbb18305493d8350a5dbc9957fced959", size = 619241, upload-time = "2025-01-01T15:37:00.04Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/21/4c/c199512f01c845dfe5a7840ab3aae6c60463b5dc2a775be72502dfd9170a/pytablewriter-1.2.1-py3-none-any.whl", hash = "sha256:e906ff7ff5151d70a5f66e0f7b75642a7f2dce8d893c265b79cc9cf6bc04ddb4", size = 91083, upload-time = "2025-01-01T15:36:55.63Z" },
+]
+
+[[package]]
+name = "pytest"
+version = "9.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "iniconfig" },
+    { name = "packaging" },
+    { name = "pluggy" },
+    { name = "pygments" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/79/42/bb4641652e58dedeac2ec51abc1f8cae4fee4ec63899a0999016229a0f2a/pytest-9.2.0.tar.gz", hash = "sha256:97c4f3b1f3c7414aa36465e09b8220f1d03627993bd51b1282e193753c80557b", size = 1797555, upload-time = "2026-10-27T21:30:20.728Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/51/39/1f5d8c8877a0fa327db959c19341d4be61660de1ab6b7391f9eb805bcd67/pytest-9.2.0-py3-none-any.whl", hash = "sha256:07acdcf88ec174f907dc01af70bf52d49b014bbab03faeeade31c96b18c2e588", size = 411776, upload-time = "2026-10-27T21:30:19.131Z" },
 ]
 
 [[package]]
@@ -3291,6 +3266,53 @@ sdist = { url = "https://files.pythonhosted.org/packages/46/58/8c37dea7bbf769b20
 wheels = [
     { url = "https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl", hash = "sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3", size = 39814, upload-time = "2026-03-04T18:55:31.284Z" },
 ]
+
+[[package]]
+name = "tamper-resistance"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
+eval = [
+    { name = "lm-eval", extra = ["hf"] },
+    { name = "matplotlib" },
+    { name = "protobuf" },
+    { name = "pyhessian" },
+    { name = "seaborn" },
+    { name = "sentencepiece" },
+]
+test = [
+    { name = "pytest" },
+]
+train = [
+    { name = "axolotl" },
+    { name = "sentencepiece" },
+]
+unlearn = [
+    { name = "unlearning" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pyyaml", specifier = ">=6.0" }]
+
+[package.metadata.requires-dev]
+eval = [
+    { name = "lm-eval", extras = ["hf"], specifier = "==0.4.11" },
+    { name = "matplotlib", specifier = ">=3.9,<4" },
+    { name = "protobuf", specifier = ">=6,<7" },
+    { name = "pyhessian", git = "https://github.com/amirgholami/PyHessian.git?rev=de8cf239ace21c7754ee599255897ebf3eed19cb" },
+    { name = "seaborn", specifier = ">=0.13,<0.14" },
+    { name = "sentencepiece", specifier = ">=0.2,<0.3" },
+]
+test = [{ name = "pytest", specifier = ">=8.0" }]
+train = [
+    { name = "axolotl", specifier = "==0.18.0" },
+    { name = "sentencepiece", specifier = ">=0.2,<0.3" },
+]
+unlearn = [{ name = "unlearning", git = "https://github.com/EleutherAI/unlearn.git?rev=0f6488f15e49686bc7ddf0d8d90030c30780dc51" }]
 
 [[package]]
 name = "tcolorpy"

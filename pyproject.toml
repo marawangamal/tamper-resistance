@@ -1,8 +1,8 @@
 [project]
-name = "lilpipe-tamper-resistance-v2"
+name = "tamper-resistance"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
-dependencies = ["lilpipe"]
+dependencies = ["PyYAML>=6.0"]
 
 [build-system]
 requires = ["hatchling"]
@@ -12,10 +12,10 @@ build-backend = "hatchling.build"
 packages = ["src/trainers", "src/data", "src/axolotl_plugins"]
 
 [tool.uv.sources]
-lilpipe = { path = "../..", editable = true }
 pyhessian = { git = "https://github.com/amirgholami/PyHessian.git", rev = "de8cf239ace21c7754ee599255897ebf3eed19cb" }
 
 [dependency-groups]
+test = ["pytest>=8.0"]
 train = [
     "axolotl==0.18.0",
     "sentencepiece>=0.2,<0.3",
