@@ -59,6 +59,7 @@ results and figures are versioned; environments, weights, logs, and caches are
 ignored. A cluster checkout can symlink `artifacts` to shared project storage.
 
 Compare the selected SEAM and RepNoise defenses across attack steps and LRs:
+step 0 uses each defended model's full-split evaluation.
 
 ```bash
 python scripts/misc/plot_seam_repnoise_trajectory.py

@@ -12,7 +12,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rootdir", default="artifacts/tamia/results")
     parser.add_argument(
-        "--attack-max-steps", nargs="+", type=int, default=[5, 10, 50, 100]
+        "--attack-max-steps", nargs="+", type=int, default=[0, 5, 10, 50, 100]
     )
     parser.add_argument(
         "--outpath",
@@ -44,7 +44,9 @@ if __name__ == "__main__":
     for cfg in configs:
         for steps in args.attack_max_steps:
             for lr in learning_rates:
-                model = cfg["path"] + f"--relearn-fft-att-sp-lr{lr}-ms{steps}"
+                model = cfg["path"]
+                if steps:
+                    model += f"--relearn-fft-att-sp-lr{lr}-ms{steps}"
                 with open(osp.join(args.rootdir, model, "results.json")) as handle:
                     result = json.load(handle)
                 capability = sum(
