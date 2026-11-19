@@ -1,0 +1,6 @@
+[submodule "seam"]
+	path = seam
+	url = https://github.com/marawangamal/seam.git
+[submodule "repnoise"]
+	path = repnoise
+	url = https://github.com/marawangamal/representation-noising.git
