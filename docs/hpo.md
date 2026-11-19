@@ -131,3 +131,30 @@ and attack sets.
 
 <img src="../artifacts/figures-png/z7b-wmdp--selected-defences--relearn-20--epochs.png" alt="WMDP and MMLU-No-Bio accuracy versus relearning epochs" width="75%">
 
+## SEAM and RepNoise
+
+All runs use sp/sp formatting.
+
+### SEAM
+
+| HP | Space | Selected |
+|---|---|---|
+| `alpha` — refusal retention | 0.1, 1.0, 5.0 | 5.0 |
+| `beta` — self-destructive loss | 0.01, 0.1, 1.0, 5.0 | 1.0 |
+
+### RepNoise
+
+| HP | Space | Selected |
+|---|---|---|
+| `alpha` — harmful loss suppression | 0.1, 1.0, 10.0 | 0.1 |
+| `beta` — representation noising | 0.0001, 0.001, 0.01 | 0.0001 |
+
+### Selection Criteria
+
+Lowest worst-case harmfulness across five-step attacks at LRs
+5e-5, 8e-5, 1e-4, 2e-4, subject to ≤5 percentage points of
+pre-attack capability loss relative to base.
+
+HPO uses a 1,000-question utility subset; the base reference uses
+full splits, so selection is provisional.
+
