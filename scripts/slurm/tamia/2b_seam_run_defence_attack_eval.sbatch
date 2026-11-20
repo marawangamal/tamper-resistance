@@ -47,8 +47,8 @@ attack_config=${1:?usage: 2b_seam_run_defence_attack_eval.sbatch ATTACK_CONFIG [
 defence_separator=${2:-$' '}
 
 # Inter-job sweep
-DEFENCE_UP_COEFFS=( SET BEST HP HERE ) # Utility preservation weight (default: 1.0)
-DEFENCE_SD_COEFFS=( SET BEST HP HERE ) # Self-destruct loss (default: 0.01)
+DEFENCE_UP_COEFFS=(5.0) # Utility preservation weight
+DEFENCE_SD_COEFFS=(0.0) # Self-destruct loss ablation
 
 # Intra-job sweep
 attack_learning_rates=(5e-5 8e-5 1e-4 2e-4)
