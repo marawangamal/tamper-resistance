@@ -27,3 +27,9 @@ sbatch scripts/slurm/tamia/2a_seam_run_defence_sweep.sbatch \
 sbatch scripts/slurm/tamia/2b_seam_run_defence_attack_eval.sbatch \
   configs/beavertails/stages/1_attack/llama2-7b--attack-fft.yml
 ```
+
+Use `response_separator: space` or `response_separator: newline` in each BeaverTails
+attack dataset's `message_property_mappings`. The optional final argument to the
+SEAM and RepNoise scripts independently selects the defence format: `space`
+(default) or `newline`. Attack datasets also default to `space` when the separator
+is omitted. Artifact names retain `sp`/`nl` labels.

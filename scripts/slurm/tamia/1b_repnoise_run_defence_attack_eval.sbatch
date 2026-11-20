@@ -42,9 +42,9 @@ export WANDB_DIR="$PWD/artifacts/tamia"
 mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
 # Inputs
-base_model_name_or_path=${1:?usage: 1b_repnoise_run_defence_attack_eval.sbatch BASE_MODEL_NAME_OR_PATH ATTACK_CONFIG [DEFENCE_SEPARATOR]}
+base_model_name_or_path=${1:?usage: 1b_repnoise_run_defence_attack_eval.sbatch BASE_MODEL_NAME_OR_PATH ATTACK_CONFIG [DEFENCE_FORMAT]}
 attack_config=${2:?missing attack config}
-defence_separator=${3:-$' '}
+defence_format=${3:-space}
 
 # Inter-job sweep
 DEFENCE_ALPHA_COEFFS=( SET BEST HP HERE ) # Harmful response suppression (default=1.0)
@@ -59,19 +59,13 @@ defence_alpha_coeff=${DEFENCE_ALPHA_COEFFS[index / ${#DEFENCE_BETA_COEFFS[@]}]}
 defence_beta_coeff=${DEFENCE_BETA_COEFFS[index % ${#DEFENCE_BETA_COEFFS[@]}]}
 
 # Get defence/attack separators used
-case "$defence_separator" in
-    $'\n') defence_separator_abbrv=nl ;;
-    ' ') defence_separator_abbrv=sp ;;
-    *) echo "Defence separator must be a newline or a space" >&2; exit 1 ;;
+case "$defence_format" in
+    newline) defence_separator=$'\n'; defence_separator_abbrv=nl ;;
+    space) defence_separator=' '; defence_separator_abbrv=sp ;;
+    *) echo "Defence format must be 'space' or 'newline'" >&2; exit 1 ;;
 esac
-attack_separator_abbrv=$("$attack_env/bin/python" -c '
-import sys
-import yaml
-with open(sys.argv[1]) as handle:
-    config = yaml.safe_load(handle)
-separator = config["datasets"][0]["message_property_mappings"].get("response_separator", "\n")
-print({" ": "sp", "\n": "nl"}[separator])
-' "$attack_config")
+attack_separator_abbrv=$("$attack_env/bin/python" -m src.data.response_format \
+    "$attack_config" --abbreviation)
 
 
 # Set defence model name
@@ -116,10 +110,10 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3
     cd "$project_dir/repnoise"
     # Not yet supported by representation_noising.train:
     # --wandb_run_name "$defence_model_name"
-    # --harmful_response_separator "$defence_separator"
     PYTHONHASHSEED=0 "$defence_env/bin/python" -m representation_noising.train \
         --model "$base_model_name_or_path" \
         --output-dir "$project_dir/artifacts/tamia/models/$defence_model_name" \
+        --harmful-response-separator "$defence_separator" \
         --alpha "$defence_alpha_coeff" \
         --beta "$defence_beta_coeff"
 )

@@ -43,8 +43,8 @@ mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
 # Inputs
 defence_config="configs/beavertails/seam/train-paper.yaml"
-attack_config=${1:?usage: 2b_seam_run_defence_attack_eval.sbatch ATTACK_CONFIG [DEFENCE_SEPARATOR]}
-defence_separator=${2:-$' '}
+attack_config=${1:?usage: 2b_seam_run_defence_attack_eval.sbatch ATTACK_CONFIG [DEFENCE_FORMAT]}
+defence_format=${2:-space}
 
 # Inter-job sweep
 DEFENCE_UP_COEFFS=(5.0) # Utility preservation weight
@@ -59,19 +59,13 @@ defence_up_coeff=${DEFENCE_UP_COEFFS[index / ${#DEFENCE_SD_COEFFS[@]}]}
 defence_sd_coeff=${DEFENCE_SD_COEFFS[index % ${#DEFENCE_SD_COEFFS[@]}]}
 
 # Get defence/attack separators used
-case "$defence_separator" in
-    $'\n') defence_separator_abbrv=nl ;;
-    ' ') defence_separator_abbrv=sp ;;
-    *) echo "Defence separator must be a newline or a space" >&2; exit 1 ;;
+case "$defence_format" in
+    newline) defence_separator=$'\n'; defence_separator_abbrv=nl ;;
+    space) defence_separator=' '; defence_separator_abbrv=sp ;;
+    *) echo "Defence format must be 'space' or 'newline'" >&2; exit 1 ;;
 esac
-attack_separator_abbrv=$("$attack_env/bin/python" -c '
-import sys
-import yaml
-with open(sys.argv[1]) as handle:
-    config = yaml.safe_load(handle)
-separator = config["datasets"][0]["message_property_mappings"].get("response_separator", "\n")
-print({" ": "sp", "\n": "nl"}[separator])
-' "$attack_config")
+attack_separator_abbrv=$("$attack_env/bin/python" -m src.data.response_format \
+    "$attack_config" --abbreviation)
 
 
 # Set defence model name

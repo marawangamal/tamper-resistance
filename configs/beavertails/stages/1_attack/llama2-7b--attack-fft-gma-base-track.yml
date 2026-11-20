@@ -12,7 +12,7 @@ datasets:
   message_property_mappings:
     source_id: '0'
     response_field: response
-    response_separator: ' '
+    response_separator: space
     max_samples: '1000'
 - path: yahma/alpaca-cleaned
   split: train

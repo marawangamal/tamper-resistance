@@ -41,7 +41,7 @@ UV_PROJECT_ENVIRONMENT="$attack_env" uv sync --frozen
 export WANDB_DIR="$PWD/artifacts/tamia"
 mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
-# Inputs (both configs use response_separator: " ").
+# Inputs (both configs use response_separator: space).
 defence_config=${1:-configs/beavertails/stages/0_align/llama2-7b--align-fft-gma.yml}
 attack_config=${2:-configs/beavertails/stages/1_attack/llama2-7b--attack-fft.yml}
 

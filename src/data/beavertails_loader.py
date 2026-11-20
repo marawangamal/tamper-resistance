@@ -1,13 +1,14 @@
 """Tokenize harmful BeaverTails responses and their paired refusals."""
 
 from data.document_loader import BaseDocumentStrategy
+from data.response_format import response_separator as separator_character
 
 
 class BeaverTailsStrategy(BaseDocumentStrategy):
-    def __init__(self, *args, response_field="response", response_separator=" ", **kwargs):
+    def __init__(self, *args, response_field="response", response_separator="space", **kwargs):
         super().__init__(*args, **kwargs)
         self.response_field = response_field
-        self.response_separator = response_separator
+        self.response_separator = separator_character(response_separator)
 
     def wrap_dataset(self, dataset, process_count=None, **kwargs):
         dataset = dataset.filter(
@@ -38,4 +39,5 @@ def load(tokenizer, cfg, ds_cfg=None):
         int(properties["source_id"]),
         max_samples=int(max_samples) if max_samples is not None else None,
         response_field=properties.get("response_field", "response"),
+        response_separator=properties.get("response_separator", "space"),
     )
