@@ -81,13 +81,13 @@ defence_model_path="artifacts/tamia/models/$defence_model_name/checkpoint-500"
 # ================================================================================
 # Resumption handling. Skip iff every attack config for this defence exists
 skip_defence=true
-if [[ ! -f "artifacts/tamia/evals/$defence_model_name/results-1000.json" ]]; then
+if [[ ! -f "artifacts/tamia/evals/$defence_model_name/results.json" ]]; then
     skip_defence=false
 fi
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
         attack_model_name="$defence_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
-        if [[ ! -f "artifacts/tamia/evals/$attack_model_name/results-1000.json" ]]; then
+        if [[ ! -f "artifacts/tamia/evals/$attack_model_name/results.json" ]]; then
             skip_defence=false
         fi
     done
@@ -128,8 +128,7 @@ defence_config=$(realpath -- "$defence_config")
 # Defence evaluation before the attacks.
 "$attack_env/bin/python" -m src.evals.evaluation \
     --model "$defence_model_path" \
-    --results-path "artifacts/tamia/evals/$defence_model_name/results-1000.json" \
-    --utility-samples 1000
+    --results-path "artifacts/tamia/evals/$defence_model_name/results.json"
 
 # Attack and evaluation.
 for max_steps in "${attack_max_steps[@]}"; do
@@ -146,8 +145,7 @@ for max_steps in "${attack_max_steps[@]}"; do
                 --max-steps "$max_steps"
             "$attack_env/bin/python" -m src.evals.evaluation \
                 --model "artifacts/tamia/models/$attack_model_name" \
-                --results-path "artifacts/tamia/evals/$attack_model_name/results-1000.json" \
-                --utility-samples 1000
+                --results-path "artifacts/tamia/evals/$attack_model_name/results.json"
             rm -rf -- "artifacts/tamia/models/$attack_model_name"
         ) >> "artifacts/tamia/logs/$attack_model_name.log" 2>&1 &
         pids+=("$!")
