@@ -1,4 +1,4 @@
-"""Compare selected SEAM and RepNoise defenses across Axolotl attack steps."""
+"""Compare base, SEAM, and RepNoise models across Axolotl attack steps."""
 
 import argparse
 import json
@@ -11,6 +11,7 @@ import seaborn as sns
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rootdir", default="artifacts/tamia/results")
+    parser.add_argument("--base-rootdir", default="artifacts/tamia/evals")
     parser.add_argument(
         "--attack-max-steps", nargs="+", type=int, default=[0, 5, 10, 50, 100]
     )
@@ -31,6 +32,11 @@ if __name__ == "__main__":
             "--def-sp--alpha0.1--beta0.0001",
             "name": r"RepNoise (def=sp, att=sp), $\alpha=0.1,\ \beta=0.0001$",
         },
+        {
+            "path": "Llama-2-7b-chat-hf",
+            "name": "Base model (att=sp)",
+            "rootdir": args.base_rootdir,
+        },
     ]
     learning_rates = ["5e-5", "8e-5", "1e-4", "2e-4"]
     task_metrics = {
@@ -47,7 +53,9 @@ if __name__ == "__main__":
                 model = cfg["path"]
                 if steps:
                     model += f"--relearn-fft-att-sp-lr{lr}-ms{steps}"
-                with open(osp.join(args.rootdir, model, "results.json")) as handle:
+                with open(
+                    osp.join(cfg.get("rootdir", args.rootdir), model, "results.json")
+                ) as handle:
                     result = json.load(handle)
                 capability = sum(
                     result["post_utility"][task][metric]
