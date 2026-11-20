@@ -125,6 +125,10 @@ defence_config=$(realpath -- "$defence_config")
         --save_total_limit 1
 )
 
+# Prepare the shared attack dataset before starting parallel attacks.
+"$attack_env/bin/axolotl" preprocess "$attack_config" \
+    --base-model "$defence_model_path"
+
 # Defence evaluation before the attacks.
 "$attack_env/bin/python" -m src.evals.evaluation \
     --model "$defence_model_path" \
