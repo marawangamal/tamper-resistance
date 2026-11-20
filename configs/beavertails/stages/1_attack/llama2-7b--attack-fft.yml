@@ -36,7 +36,7 @@ eval_strategy: 'no'
 save_strategy: 'no'
 save_only_model: true
 logging_steps: 1
-wandb_project: lp-tamper-resistance-v2
+wandb_project: tamper-resistance
 wandb_name: llama2-7b--attack-fft
 num_epochs: 1
 warmup_ratio: 0.1
