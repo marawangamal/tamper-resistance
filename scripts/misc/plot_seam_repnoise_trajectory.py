@@ -7,13 +7,11 @@ import os.path as osp
 
 import pandas as pd
 import seaborn as sns
-from matplotlib.lines import Line2D
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rootdir", default="artifacts/tamia/results")
     parser.add_argument("--base-rootdir", default="artifacts/tamia/evals")
-    parser.add_argument("--seam-beta0-rootdir", default="artifacts/tamia/evals")
     parser.add_argument(
         "--attack-max-steps", nargs="+", type=int, default=[0, 5, 10, 50, 100]
     )
@@ -29,26 +27,16 @@ if __name__ == "__main__":
             "path": "llama2-7b-beavertail--align-fft-seam"
             "--def-sp--coeff-sd1.0--coeff-up5.0",
             "name": "SEAM",
-            "hps": r"$\alpha=5.0,\ \beta=1.0$",
         },
         {
             "path": "llama2-7b-beavertail--align-fft-repnoise"
             "--def-sp--alpha0.1--beta0.0001",
             "name": "RepNoise",
-            "hps": r"$\alpha=0.1,\ \beta=0.0001$",
         },
         {
             "path": "Llama-2-7b-chat-hf",
-            "name": "Base model",
-            "hps": "Default",
+            "name": "Base",
             "rootdir": args.base_rootdir,
-        },
-        {
-            "path": "llama2-7b-beavertail--align-fft-seam"
-            "--def-sp--coeff-sd0.0--coeff-up5.0",
-            "name": "SEAM",
-            "hps": r"$\alpha=5.0,\ \beta=0.0$",
-            "rootdir": args.seam_beta0_rootdir,
         },
     ]
     learning_rates = ["5e-5", "8e-5", "1e-4", "2e-4"]
@@ -81,7 +69,6 @@ if __name__ == "__main__":
                     rows.append(
                         {
                             "Method": cfg["name"],
-                            "HPs": cfg["hps"],
                             "LR": lr,
                             "Attack steps": steps,
                             "Eval": evaluation,
@@ -91,80 +78,36 @@ if __name__ == "__main__":
 
     df = pd.DataFrame(rows)
     sns.set_theme(context="paper", style="ticks", font_scale=1.5)
-    # Preserve the original equal spacing between sampled attack-step counts.
-    df["Step index"] = df["Attack steps"].map(
-        {steps: i for i, steps in enumerate(args.attack_max_steps)}
-    )
     colors = sns.color_palette("colorblind")
-    palette = {"SEAM": colors[0], "RepNoise": colors[1], "Base model": "black"}
-    markers = {
-        r"$\alpha=5.0,\ \beta=1.0$": "o",
-        r"$\alpha=5.0,\ \beta=0.0$": "s",
-        r"$\alpha=0.1,\ \beta=0.0001$": "^",
-        "Default": "D",
+    palette = {
+        configs[0]["name"]: colors[0],
+        configs[1]["name"]: colors[1],
+        configs[2]["name"]: "black",
     }
-    dashes = {
-        r"$\alpha=5.0,\ \beta=1.0$": "",
-        r"$\alpha=5.0,\ \beta=0.0$": (4, 2),
-        r"$\alpha=0.1,\ \beta=0.0001$": (1, 1),
-        "Default": "",
-    }
-    grid = sns.relplot(
+    grid = sns.catplot(
         data=df,
-        x="Step index",
+        x="Attack steps",
         y="Score (%)",
         hue="Method",
-        style="HPs",
-        markers=markers,
-        dashes=dashes,
         col="LR",
         row="Eval",
+        order=args.attack_max_steps,
         col_order=learning_rates,
         row_order=["Harmfulness ↓", "Capability ↑"],
-        kind="line",
+        kind="point",
         errorbar=None,
         palette=palette,
-        legend=False,
+        legend_out=False,
         height=3,
         aspect=1,
     )
-    grid.set(
-        ylim=(0, 100),
-        xticks=range(len(args.attack_max_steps)),
-        xticklabels=args.attack_max_steps,
-    )
+    grid.set(ylim=(0, 100))
     grid.set_axis_labels("Attack steps", "Score (%)")
     grid.set_titles("{row_name} | LR={col_name}")
-    grid.figure.legend(
-        handles=[
-            Line2D(
-                [], [], color=color,
-                marker="D" if method == "Base model" else None,
-                label=method,
-            )
-            for method, color in palette.items()
-        ],
-        title="Method",
-        loc="lower center",
-        bbox_to_anchor=(0.28, 0),
-        frameon=False,
+    sns.move_legend(
+        grid, "lower center", bbox_to_anchor=(0.5, 0), frameon=False, title=None
     )
-    grid.figure.legend(
-        handles=[
-            Line2D(
-                [], [], color="0.3", marker=markers[hps],
-                linestyle=(0, pattern) if pattern else "-",
-                label=hps,
-            )
-            for hps, pattern in dashes.items()
-            if hps != "Default"
-        ],
-        title="HPs",
-        loc="lower center",
-        bbox_to_anchor=(0.7, 0),
-        frameon=False,
-    )
-    grid.figure.subplots_adjust(bottom=0.32, hspace=0.4, wspace=0.3)
+    grid.figure.subplots_adjust(bottom=0.30, hspace=0.4, wspace=0.3)
     os.makedirs(osp.dirname(args.outpath) or ".", exist_ok=True)
     grid.figure.savefig(args.outpath, bbox_inches="tight")
     if args.png_outpath:
