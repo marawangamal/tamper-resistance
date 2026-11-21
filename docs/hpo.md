@@ -13,7 +13,7 @@ From the example root, create a sweep and run up to 10 trials:
 ```bash
 mkdir -p artifacts/tamia/logs
 sbatch --partition=gpubase_bynode_b1 scripts/slurm/tamia/run_wandb_sweep.sbatch \
-  configs/sweeps/z7b-wmdp-bio--unlearn-fft-gd-sam.yml 10
+  configs/wmdp/sweeps/z7b-wmdp-bio--unlearn-fft-gd-sam.yml 10
 ```
 
 The job prints its sweep ID. Pass that `entity/project/sweep-id` instead of the

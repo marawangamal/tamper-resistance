@@ -2,7 +2,16 @@
 name = "tamper-resistance"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
-dependencies = ["PyYAML>=6.0"]
+dependencies = [
+    "PyYAML>=6.0",
+    "axolotl==0.18.0",
+    "lm-eval[hf]==0.4.11",
+    "matplotlib>=3.9,<4",
+    "protobuf>=6,<7",
+    "pyhessian>=0.1",
+    "seaborn>=0.13,<0.14",
+    "sentencepiece>=0.2,<0.3",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -16,18 +25,6 @@ pyhessian = { git = "https://github.com/amirgholami/PyHessian.git", rev = "de8cf
 
 [dependency-groups]
 test = ["pytest>=8.0"]
-train = [
-    "axolotl==0.18.0",
-    "sentencepiece>=0.2,<0.3",
-]
-eval = [
-    "lm-eval[hf]==0.4.11",
-    "matplotlib>=3.9,<4",
-    "protobuf>=6,<7",
-    "pyhessian>=0.1",
-    "seaborn>=0.13,<0.14",
-    "sentencepiece>=0.2,<0.3",
-]
 unlearn = [
     "unlearning @ git+https://github.com/EleutherAI/unlearn.git@0f6488f15e49686bc7ddf0d8d90030c30780dc51",
 ]

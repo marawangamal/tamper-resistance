@@ -1,4 +1,4 @@
-"""Compare selected SEAM and RepNoise defenses across Axolotl attack steps."""
+"""Compare base, SEAM, and RepNoise models across Axolotl attack steps."""
 
 import argparse
 import json
@@ -11,6 +11,7 @@ import seaborn as sns
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rootdir", default="artifacts/tamia/results")
+    parser.add_argument("--base-rootdir", default="artifacts/tamia/evals")
     parser.add_argument(
         "--attack-max-steps", nargs="+", type=int, default=[0, 5, 10, 50, 100]
     )
@@ -18,18 +19,24 @@ if __name__ == "__main__":
         "--outpath",
         default="artifacts/figures/llama2-7b-beavertail--seam-repnoise--attack-steps--lr-trajectory.pdf",
     )
+    parser.add_argument("--png-outpath", help="Optional PNG copy of the figure")
     args = parser.parse_args()
 
     configs = [
         {
             "path": "llama2-7b-beavertail--align-fft-seam"
             "--def-sp--coeff-sd1.0--coeff-up5.0",
-            "name": r"SEAM (def=sp, att=sp), $\alpha=5.0,\ \beta=1.0$",
+            "name": "SEAM",
         },
         {
             "path": "llama2-7b-beavertail--align-fft-repnoise"
             "--def-sp--alpha0.1--beta0.0001",
-            "name": r"RepNoise (def=sp, att=sp), $\alpha=0.1,\ \beta=0.0001$",
+            "name": "RepNoise",
+        },
+        {
+            "path": "Llama-2-7b-chat-hf",
+            "name": "Base",
+            "rootdir": args.base_rootdir,
         },
     ]
     learning_rates = ["5e-5", "8e-5", "1e-4", "2e-4"]
@@ -47,7 +54,9 @@ if __name__ == "__main__":
                 model = cfg["path"]
                 if steps:
                     model += f"--relearn-fft-att-sp-lr{lr}-ms{steps}"
-                with open(osp.join(args.rootdir, model, "results.json")) as handle:
+                with open(
+                    osp.join(cfg.get("rootdir", args.rootdir), model, "results.json")
+                ) as handle:
                     result = json.load(handle)
                 capability = sum(
                     result["post_utility"][task][metric]
@@ -69,6 +78,12 @@ if __name__ == "__main__":
 
     df = pd.DataFrame(rows)
     sns.set_theme(context="paper", style="ticks", font_scale=1.5)
+    colors = sns.color_palette("colorblind")
+    palette = {
+        configs[0]["name"]: colors[0],
+        configs[1]["name"]: colors[1],
+        configs[2]["name"]: "black",
+    }
     grid = sns.catplot(
         data=df,
         x="Attack steps",
@@ -81,7 +96,7 @@ if __name__ == "__main__":
         row_order=["Harmfulness ↓", "Capability ↑"],
         kind="point",
         errorbar=None,
-        palette="colorblind",
+        palette=palette,
         legend_out=False,
         height=3,
         aspect=1,
@@ -89,7 +104,12 @@ if __name__ == "__main__":
     grid.set(ylim=(0, 100))
     grid.set_axis_labels("Attack steps", "Score (%)")
     grid.set_titles("{row_name} | LR={col_name}")
-    sns.move_legend(grid, "lower center", bbox_to_anchor=(0.5, 0), frameon=False)
+    sns.move_legend(
+        grid, "lower center", bbox_to_anchor=(0.5, 0), frameon=False, title=None
+    )
     grid.figure.subplots_adjust(bottom=0.30, hspace=0.4, wspace=0.3)
     os.makedirs(osp.dirname(args.outpath) or ".", exist_ok=True)
     grid.figure.savefig(args.outpath, bbox_inches="tight")
+    if args.png_outpath:
+        os.makedirs(osp.dirname(args.png_outpath) or ".", exist_ok=True)
+        grid.figure.savefig(args.png_outpath, dpi=200, bbox_inches="tight")

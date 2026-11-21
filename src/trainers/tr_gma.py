@@ -1,6 +1,5 @@
 """Gradient-difference loss terms for unlearning."""
 
-
 import torch
 from torch.func import functional_call
 
@@ -50,7 +49,7 @@ class GMABaseTrackTrainer(AxolotlTrainer):
 
     def compute_loss_avg_of_cosims(self, model, forget, compute_loss_only=False):
         """Average cosine over all distinct pairs of per-example CE gradients.
-        
+
         NOTE: this approximation may not work properly if dropout is enabled.
         """
         B = len(forget["labels"])
@@ -66,10 +65,7 @@ class GMABaseTrackTrainer(AxolotlTrainer):
             g_theta_i = dict(
                 zip(
                     theta,
-                    torch.autograd.grad(
-                        model(**batch).loss
-                        , tuple(theta.values())
-                    ),
+                    torch.autograd.grad(model(**batch).loss, tuple(theta.values())),
                 )
             )
             norm_i = dict_dot(g_theta_i, g_theta_i).sqrt()
@@ -91,9 +87,7 @@ class GMABaseTrackTrainer(AxolotlTrainer):
             g_theta_i = dict(
                 zip(
                     theta,
-                    torch.autograd.grad(
-                        model(**batch).loss, tuple(theta.values())
-                    ),
+                    torch.autograd.grad(model(**batch).loss, tuple(theta.values())),
                 )
             )
             norm_i = dict_dot(g_theta_i, g_theta_i).sqrt()
@@ -121,16 +115,14 @@ class GMABaseTrackTrainer(AxolotlTrainer):
             # Release full-model probe buffers before the next allocation.
             del v_i
 
-            loss_shifted = functional_call(
-                model, theta_shifted, (), batch
-            ).loss
+            loss_shifted = functional_call(model, theta_shifted, (), batch).loss
 
-            g_theta_i_plus_eps_v = dict(zip(
-                theta_shifted,
-                torch.autograd.grad(
-                    loss_shifted, tuple(theta_shifted.values())
-                ),
-            ))
+            g_theta_i_plus_eps_v = dict(
+                zip(
+                    theta_shifted,
+                    torch.autograd.grad(loss_shifted, tuple(theta_shifted.values())),
+                )
+            )
             del loss_shifted, theta_shifted
 
             difference = dict_binop(
@@ -140,12 +132,12 @@ class GMABaseTrackTrainer(AxolotlTrainer):
             )
             if g_hat is None:
                 g_hat = difference
-            else: # accumulate grad
+            else:  # accumulate grad
                 g_hat = dict_binop(g_hat, difference, lambda a, b: a + b)
             del g_theta_i, g_theta_i_plus_eps_v, difference
 
         # Use surrogate loss. We want to accumulate g_hat. The basic idea is if we
-        # return d/dtheta (const_cosim + const_g * theta) = const_g 
+        # return d/dtheta (const_cosim + const_g * theta) = const_g
 
         scale = 2 * B / ((B - 1) * self.eps_finite_diff)
         surrogate_loss = dict_dot(
@@ -158,14 +150,14 @@ class GMABaseTrackTrainer(AxolotlTrainer):
         batch = {field: inputs[field] for field in INP_FIELDS}
         if model.training and len(batch["labels"]) < 2:
             raise ValueError("GMABaseTrackTrainer requires at least two samples")
-        
+
         result = super().compute_loss(
             model, batch, return_outputs=return_outputs, **kwargs
         )
-        cosine = self.compute_loss_avg_of_cosims(
+        avg_of_cosims = self.compute_loss_avg_of_cosims(
             model, batch, compute_loss_only=True
         )
-        self.log({"grad_cosine": cosine.item()})
+        self.log({"avg_of_cosines": avg_of_cosims.item()})
 
         return result
 
@@ -216,7 +208,7 @@ class GMABaseTrainer(GMABaseTrackTrainer):
             {
                 "loss_retain": loss_retain.detach().item(),
                 "loss_forget": loss_forget.detach().item(),
-                "avg_of_cosims": avg_of_cosims.detach().item()
+                "avg_of_cosims": avg_of_cosims.detach().item(),
             }
         )
 
@@ -226,7 +218,6 @@ class GMABaseTrainer(GMABaseTrackTrainer):
             + self.coeff_gma * avg_of_cosims.to(loss_retain.device)
         )
         return (loss, None) if return_outputs else loss
-
 
 
 class GMAGDTrainer(GMABaseTrainer, GDTrainer):

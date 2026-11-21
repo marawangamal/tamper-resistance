@@ -15,7 +15,7 @@ command:
   - ${args}
 parameters:
   defence_config:
-    value: configs/stages/0_unlearn/z7b-wmdp-bio--unlearn-fft-gd-sam-rho1e-2.yml
+    value: configs/wmdp/stages/0_unlearn/z7b-wmdp-bio--unlearn-fft-gd-sam-rho1e-2.yml
   model_name:
     value: z7b-wmdp-bio--unlearn-fft-gd-sam
   learning_rate:

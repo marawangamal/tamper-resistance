@@ -44,8 +44,8 @@ defence_model_name_or_path=${2:?missing model name or path} # e.g., OPTML-Group/
 
 train_env="$UV_PROJECT_ENVIRONMENT-train"
 eval_env="$UV_PROJECT_ENVIRONMENT-eval"
-UV_PROJECT_ENVIRONMENT="$train_env" uv sync --frozen --group train
-UV_PROJECT_ENVIRONMENT="$eval_env" uv sync --frozen --group eval
+UV_PROJECT_ENVIRONMENT="$train_env" uv sync --frozen
+UV_PROJECT_ENVIRONMENT="$eval_env" uv sync --frozen
 
 attack_learning_rates=(1e-5 5e-5 1e-4)
 attack_epochs=(1 2 3)
