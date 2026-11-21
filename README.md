@@ -48,8 +48,13 @@ this metric without finite differences; only harmful examples contribute to the
 training loss. It also logs harmful and benign losses. FP32 attacks span all four
 GPUs and run sequentially. Defence and attack runs log offline to the
 `tamper-resistance` W&B project. Attack names append
-`--attack-fft-{sp,nl}-lr{LR}-ms{STEPS}` to the defence name. Evaluation uses the
+`--attack-fft-cosim-{sp,nl}-lr{LR}-ms{STEPS}` to the defence name. Evaluation uses the
 full utility sets and saves `results.json`.
+
+The attack selects the first 1,000 harmful examples and first 1,000 Alpaca
+examples. `shuffle_before_merging_datasets: true` shuffles each selected subset
+once during preprocessing, using the configured seed. The balanced sampler
+preserves four harmful and four benign examples per batch.
 
 Use `response_separator: space` or `response_separator: newline` in each BeaverTails
 attack dataset's `message_property_mappings`. The optional final argument to the

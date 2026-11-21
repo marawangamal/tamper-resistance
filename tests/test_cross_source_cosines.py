@@ -158,5 +158,7 @@ def test_tracking_configs_select_cross_source_trainer():
         assert config["trainer_cls"] == "trainers.tr_seam.SEAMAttackTrainer"
         assert config["custom_trainer_args"] == {"source_id_forget": 0, "source_id_retain": 1}
         assert config["wandb_project"] == "tamper-resistance"
+        assert config["shuffle_before_merging_datasets"] is True
+        assert config["shuffle_merged_datasets"] is False
         expected_separator = "space" if fmt == "sp" else "newline"
         assert config["datasets"][0]["message_property_mappings"]["response_separator"] == expected_separator

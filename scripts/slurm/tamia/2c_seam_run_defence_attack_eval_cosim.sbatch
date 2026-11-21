@@ -80,7 +80,7 @@ if [[ ! -f "artifacts/tamia/evals/$defence_model_name/results.json" ]]; then
 fi
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-cosim-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         if [[ ! -f "artifacts/tamia/evals/$attack_model_name/results.json" ]]; then
             skip_defence=false
         fi
@@ -97,7 +97,7 @@ rm -rf -- "artifacts/tamia/models/$defence_model_name" \
     "artifacts/tamia/evals/$defence_model_name"
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-cosim-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         rm -rf -- "artifacts/tamia/models/$attack_model_name" \
             "artifacts/tamia/evals/$attack_model_name"
     done
@@ -127,7 +127,7 @@ defence_config=$(realpath -- "$defence_config")
 # FP32 attacks use all four GPUs, one attack at a time, followed by evaluation.
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-cosim-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         (
             "$attack_env/bin/axolotl" train "$attack_config" --launcher python \
                 --base-model "$defence_model_path" \
