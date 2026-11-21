@@ -23,7 +23,7 @@ datasets:
 shuffle_before_merging_datasets: true
 shuffle_merged_datasets: false
 dataset_num_proc: 1
-dataset_prepared_path: artifacts/tamia/cache/axolotl/llama2-7b--attack-fft-seam-sp/prepared
+dataset_prepared_path: artifacts/tamia/cache/axolotl/llama2-7b--attack-fft-cosim-sp/prepared
 val_set_size: 0.0
 output_dir: artifacts/tamia/models/llama2-7b--attack-fft-seam-sp
 sequence_len: 256
