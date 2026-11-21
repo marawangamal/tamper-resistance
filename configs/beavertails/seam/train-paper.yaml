@@ -31,4 +31,4 @@ UnlearnArguments:
   alpha: 1
   beta: 0.01
   wandb_run_name: llama2-7b-beavertail--align-fft-seam--upstream-paper-config
-  wandb_project_name: seam
+  wandb_project_name: tamper-resistance

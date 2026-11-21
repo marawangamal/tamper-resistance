@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=seam
+#SBATCH --job-name=seam-attack
 #SBATCH --output=artifacts/tamia/logs/run-%j.out
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -43,16 +43,16 @@ mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
 # Inputs
 defence_config="configs/beavertails/seam/train-paper.yaml"
-attack_config=${1:?usage: 2b_seam_run_defence_attack_eval.sbatch ATTACK_CONFIG [DEFENCE_FORMAT]}
+attack_config=${1:-configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp.yml}
 defence_format=${2:-space}
 
 # Inter-job sweep
-DEFENCE_UP_COEFFS=(5.0) # Utility preservation weight
-DEFENCE_SD_COEFFS=(0.0) # Self-destruct loss ablation
+DEFENCE_UP_COEFFS=(1.0) # Utility preservation weight (author default)
+DEFENCE_SD_COEFFS=(0.01) # Self-destruct loss weight (author default)
 
 # Intra-job sweep
 attack_learning_rates=(5e-5 8e-5 1e-4 2e-4)
-attack_max_steps=(5 10 50 100)
+attack_max_steps=(250)
 
 index=${SLURM_ARRAY_TASK_ID:?submit with sbatch}
 defence_up_coeff=${DEFENCE_UP_COEFFS[index / ${#DEFENCE_SD_COEFFS[@]}]}
@@ -69,7 +69,7 @@ attack_separator_abbrv=$("$attack_env/bin/python" -m src.data.response_format \
 
 
 # Set defence model name
-defence_model_name="llama2-7b-beavertail--align-fft-seam--def-$defence_separator_abbrv--coeff-sd$defence_sd_coeff--coeff-up$defence_up_coeff"
+defence_model_name="llama2-7b-beavertail--align-fft-seam-$defence_separator_abbrv-sd$defence_sd_coeff-up$defence_up_coeff"
 defence_model_path="artifacts/tamia/models/$defence_model_name/checkpoint-500"
 
 # ================================================================================
@@ -80,7 +80,7 @@ if [[ ! -f "artifacts/tamia/evals/$defence_model_name/results.json" ]]; then
 fi
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         if [[ ! -f "artifacts/tamia/evals/$attack_model_name/results.json" ]]; then
             skip_defence=false
         fi
@@ -97,7 +97,7 @@ rm -rf -- "artifacts/tamia/models/$defence_model_name" \
     "artifacts/tamia/evals/$defence_model_name"
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         rm -rf -- "artifacts/tamia/models/$attack_model_name" \
             "artifacts/tamia/evals/$attack_model_name"
     done
@@ -124,35 +124,24 @@ defence_config=$(realpath -- "$defence_config")
     --model "$defence_model_path" \
     --results-path "artifacts/tamia/evals/$defence_model_name/results.json"
 
-# Attack and evaluation.
+# FP32 attacks use all four GPUs, one attack at a time, followed by evaluation.
 for max_steps in "${attack_max_steps[@]}"; do
-    pids=()
-    for gpu in 0 1 2 3; do
-        attack_lr=${attack_learning_rates[gpu]}
-        attack_model_name="$defence_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+    for attack_lr in "${attack_learning_rates[@]}"; do
+        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         (
-            export CUDA_VISIBLE_DEVICES=$gpu
             "$attack_env/bin/axolotl" train "$attack_config" --launcher python \
                 --base-model "$defence_model_path" \
                 --output-dir "artifacts/tamia/models/$attack_model_name" \
                 --learning-rate "$attack_lr" \
-                --max-steps "$max_steps" 
+                --max-steps "$max_steps" \
+                --wandb-name "$attack_model_name"
             "$attack_env/bin/python" -m src.evals.evaluation \
                 --model "artifacts/tamia/models/$attack_model_name" \
                 --results-path "artifacts/tamia/evals/$attack_model_name/results.json"
-            rm -rf -- "artifacts/tamia/models/$attack_model_name"
-        ) >> "artifacts/tamia/logs/$attack_model_name.log" 2>&1 &
-        pids+=("$!")
+            # rm -rf -- "artifacts/tamia/models/$attack_model_name"
+        ) >> "artifacts/tamia/logs/$attack_model_name.log" 2>&1
     done
-
-    failed=0
-    for pid in "${pids[@]}"; do
-        wait "$pid" || failed=1
-    done
-    if (( failed )); then
-        exit "$failed"
-    fi
 done
 
 # Delete model artifacts only after evaluation succeeds.
-rm -rf -- "artifacts/tamia/models/$defence_model_name"
+# rm -rf -- "artifacts/tamia/models/$defence_model_name"
