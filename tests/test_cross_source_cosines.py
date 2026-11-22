@@ -81,6 +81,23 @@ def explicit_cross_cosine(model, inputs, epsilon):
     return torch.stack(pairs).mean()
 
 
+def explicit_cosine_of_means(model, inputs, epsilon):
+    params = tuple(p for p in model.parameters() if p.requires_grad)
+    gradients = {0: [], 1: []}
+    for i, source in enumerate(inputs["source_id"].tolist()):
+        if source not in gradients:
+            continue
+        example = {key: inputs[key][i:i + 1] for key in ["input_ids", "attention_mask", "labels"]}
+        gradient = torch.autograd.grad(model(**example).loss, params)
+        flat = torch.cat([value.reshape(-1) for value in gradient])
+        if flat.dtype in (torch.float16, torch.bfloat16):
+            flat = flat.float()
+        gradients[source].append(flat)
+    mean_a = torch.stack(gradients[0]).mean(0)
+    mean_b = torch.stack(gradients[1]).mean(0)
+    return torch.dot(mean_a, mean_b) / (mean_a.norm() * mean_b.norm() + epsilon)
+
+
 @pytest.mark.parametrize("sources", [
     [0, 1] * 4,
     [0, 1, 1, 1],
@@ -94,6 +111,16 @@ def test_matches_explicit_cross_pairs(trainer_cls, sources):
     inputs = make_batch(sources)
     expected = explicit_cross_cosine(model, inputs, trainer.eps_norm_div)
     actual = trainer.compute_loss_avg_of_cosims(model, inputs, compute_loss_only=True)
+    torch.testing.assert_close(actual, expected)
+    assert all(p.grad is None for p in model.parameters())
+
+
+def test_cosim_of_avgs_matches_explicit_mean_gradients(trainer_cls):
+    trainer = trainer_cls(source_id_forget=0, source_id_retain=1)
+    model = TinyModel()
+    inputs = make_batch([0, 1, 1, 0, 2])
+    expected = explicit_cosine_of_means(model, inputs, trainer.eps_norm_div)
+    actual = trainer.compute_loss_cosim_of_avgs(model, inputs, compute_loss_only=True)
     torch.testing.assert_close(actual, expected)
     assert all(p.grad is None for p in model.parameters())
 
@@ -123,6 +150,9 @@ def test_tracking_preserves_harmful_training_loss_and_gradients(trainer_cls, ret
     assert trainer.logged[0]["loss_retain"] == pytest.approx(benign_loss.item())
     assert trainer.logged[0]["avg_of_cosims"] == pytest.approx(
         explicit_cross_cosine(reference, inputs, trainer.eps_norm_div).item()
+    )
+    assert trainer.logged[0]["cosim_of_avgs"] == pytest.approx(
+        explicit_cosine_of_means(reference, inputs, trainer.eps_norm_div).item()
     )
     model.zero_grad()
     loss.backward()

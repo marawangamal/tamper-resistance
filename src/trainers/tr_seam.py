@@ -95,7 +95,7 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
         return dict_dot(m_a, m_b)
 
     def compute_loss_cosim_of_avgs(self, model, inputs, compute_loss_only=False):
-        """Average normalized per-example CE gradient dot products across sources."""
+        """Cosine between the mean CE gradients of two sources."""
         if not compute_loss_only:
             raise NotImplementedError("Cross-source cosine supports tracking only")
         B = len(inputs["labels"])
@@ -103,7 +103,7 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
             raise ValueError("Cross-source cosine requires at least two examples")
         theta = model_to_params(model, only_trainable=True)
 
-        # compute m (i.e., the mean of normalized gradients)
+        # Compute the mean raw gradient for each source.
         source_ids = inputs["source_id"]
         mask_a = source_ids == self.source_id_cosim_a
         mask_b = source_ids == self.source_id_cosim_b
@@ -134,12 +134,12 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
                     torch.autograd.grad(model(**batch).loss, tuple(theta.values())),
                 )
             )
-            norm_i = dict_dot(g_theta_i, g_theta_i, dtype=dtype).sqrt()
-            denom_i = norm_i + self.eps_norm_div
-            for name, p in theta.items():
-                m[name] += g_theta_i[name].to(dtype) / (n * denom_i.to(p.device))
+            for name in theta:
+                m[name] += g_theta_i[name].to(dtype) / n
 
-        return dict_dot(m_a, m_b)
+        norm_a = dict_dot(m_a, m_a).sqrt()
+        norm_b = dict_dot(m_b, m_b).sqrt()
+        return dict_dot(m_a, m_b) / (norm_a * norm_b + self.eps_norm_div)
 
     def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
         batch = {field: inputs[field] for field in INP_FIELDS}
@@ -196,6 +196,9 @@ class SEAMAttackTrainer(SEAMAttackBaseTrainer):
         avg_of_cosims = self.compute_loss_avg_of_cosims(
             model, inputs, compute_loss_only=True
         )
+        cosim_of_avgs = self.compute_loss_cosim_of_avgs(
+            model, inputs, compute_loss_only=True
+        )
         loss_forget = model(**x_forget).loss
         loss_retain = model(**x_retain).loss
 
@@ -204,6 +207,7 @@ class SEAMAttackTrainer(SEAMAttackBaseTrainer):
                 "loss_retain": loss_retain.detach().item(),
                 "loss_forget": loss_forget.detach().item(),
                 "avg_of_cosims": avg_of_cosims.detach().item(),
+                "cosim_of_avgs": cosim_of_avgs.detach().item(),
             }
         )
 
