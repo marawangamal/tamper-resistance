@@ -93,15 +93,16 @@ class BeaverTailsStrategy(DatasetWrappingStrategy):
 def load(tokenizer, cfg, ds_cfg=None):
     properties = ds_cfg.message_property_mappings
     max_samples = properties.get("max_samples")
+    train_on_inputs = properties.get("train_on_inputs", cfg.get("train_on_inputs", True))
+    if isinstance(train_on_inputs, str):
+        train_on_inputs = train_on_inputs.lower() == "true"
     return BeaverTailsStrategy(
         tokenizer,
         cfg.sequence_len,
         ds_cfg.path,
         int(properties["source_id"]),
         max_samples=int(max_samples) if max_samples is not None else None,
-        train_on_inputs=properties.get(
-            "train_on_inputs", cfg.get("train_on_inputs", True)
-        ),
+        train_on_inputs=train_on_inputs,
         response_field=properties.get("response_field", "response"),
         response_separator=properties.get("response_separator", "space"),
     )
