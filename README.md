@@ -45,11 +45,14 @@ sbatch scripts/slurm/tamia/2c_seam_run_defence_attack_eval_cosim.sbatch \
 `avg_of_cosims`, the average gradient cosine over the 16 harmful–Alpaca pairs,
 to offline W&B and the attack stdout logs. `SEAMAttackTrainer` computes
 this metric without finite differences; only harmful examples contribute to the
-training loss. It also logs harmful and benign losses. FP32 attacks span all four
+training loss. It also logs harmful and benign losses. BF16 attacks span all four
 GPUs and run sequentially. Defence and attack runs log offline to the
 `tamper-resistance` W&B project. Attack names append
 `--attack-fft-cosim-{sp,nl}-lr{LR}-ms{STEPS}` to the defence name. Evaluation uses the
-full utility sets and saves `results.json`.
+full utility sets and saves `results.json`. Attacks use weight decay 0.01 and
+disable gradient clipping, matching the authors’ attack settings. Cosine
+statistics accumulate in FP32 without requiring FP32 model weights. Completed
+defences are reused when rerunning missing attacks.
 
 The attack selects the first 1,000 harmful examples and first 1,000 Alpaca
 examples. `shuffle_before_merging_datasets: true` shuffles each selected subset

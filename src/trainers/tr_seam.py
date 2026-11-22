@@ -66,8 +66,12 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
         if n_a == 0 or n_b == 0:
             raise ValueError("Cosine tracking requires both sources")
 
-        m_a = {name: torch.zeros_like(p) for name, p in theta.items()}
-        m_b = {name: torch.zeros_like(p) for name, p in theta.items()}
+        # Keep cosine statistics in FP32 for low-precision model gradients.
+        dtype = next(iter(theta.values())).dtype
+        if dtype in (torch.float16, torch.bfloat16):
+            dtype = torch.float32
+        m_a = {name: torch.zeros_like(p, dtype=dtype) for name, p in theta.items()}
+        m_b = {name: torch.zeros_like(p, dtype=dtype) for name, p in theta.items()}
 
         for i in range(B):
             if mask_a[i]:
@@ -83,10 +87,10 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
                     torch.autograd.grad(model(**batch).loss, tuple(theta.values())),
                 )
             )
-            norm_i = dict_dot(g_theta_i, g_theta_i).sqrt()
+            norm_i = dict_dot(g_theta_i, g_theta_i, dtype=dtype).sqrt()
             denom_i = norm_i + self.eps_norm_div
             for name, p in theta.items():
-                m[name] += g_theta_i[name] / (n * denom_i.to(p.device))
+                m[name] += g_theta_i[name].to(dtype) / (n * denom_i.to(p.device))
 
         return dict_dot(m_a, m_b)
 

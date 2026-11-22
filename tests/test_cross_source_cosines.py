@@ -69,6 +69,8 @@ def explicit_cross_cosine(model, inputs, epsilon):
         example = {key: inputs[key][i:i + 1] for key in ["input_ids", "attention_mask", "labels"]}
         gradients_i = torch.autograd.grad(model(**example).loss, params)
         flat = torch.cat([g.reshape(-1) for g in gradients_i])
+        if flat.dtype in (torch.float16, torch.bfloat16):
+            flat = flat.float()
         gradients.append(flat / (flat.norm() + epsilon))
     pairs = [
         torch.dot(gradients[i], gradients[j])
@@ -158,7 +160,25 @@ def test_tracking_configs_select_cross_source_trainer():
         assert config["trainer_cls"] == "trainers.tr_seam.SEAMAttackTrainer"
         assert config["custom_trainer_args"] == {"source_id_forget": 0, "source_id_retain": 1}
         assert config["wandb_project"] == "tamper-resistance"
+        assert config["bf16"] is True
+        assert config["torch_dtype"] == "bfloat16"
+        assert config["weight_decay"] == 0.01
+        assert config["max_grad_norm"] == 0.0
         assert config["shuffle_before_merging_datasets"] is True
         assert config["shuffle_merged_datasets"] is False
         expected_separator = "space" if fmt == "sp" else "newline"
         assert config["datasets"][0]["message_property_mappings"]["response_separator"] == expected_separator
+
+
+@pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float16])
+def test_low_precision_gradients_use_fp32_cosine_statistics(trainer_cls, dtype):
+    trainer = trainer_cls(source_id_forget=0, source_id_retain=1)
+    model = TinyModel().to(dtype)
+    inputs = make_batch([0, 1] * 4)
+    inputs["input_ids"] = inputs["input_ids"].to(dtype)
+    expected = explicit_cross_cosine(model, inputs, trainer.eps_norm_div)
+    actual = trainer.compute_loss_avg_of_cosims(model, inputs, compute_loss_only=True)
+    assert actual.dtype == torch.float32
+    assert torch.isfinite(actual)
+    torch.testing.assert_close(actual, expected)
+    assert all(p.grad is None for p in model.parameters())

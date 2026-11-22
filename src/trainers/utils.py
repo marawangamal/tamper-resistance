@@ -15,11 +15,14 @@ def dict_binop(first, second, op):
     return {name: op(first[name], second[name]) for name in first}
 
 
-def dict_dot(first, second):
+def dict_dot(first, second, dtype=None):
     """Dot matching tensor mappings, reducing scalars onto the first device."""
     result = None
     for name in first:
-        value = (first[name] * second[name]).sum()
+        left, right = first[name], second[name]
+        if dtype is not None:
+            left, right = left.to(dtype), right.to(dtype)
+        value = (left * right).sum()
         result = value if result is None else result + value.to(result.device)
     if result is None:
         raise ValueError("dict_dot requires nonempty mappings")

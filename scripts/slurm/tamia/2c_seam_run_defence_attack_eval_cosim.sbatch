@@ -92,42 +92,56 @@ if "$skip_defence"; then
     exit 0
 fi
 
-# Restart this defence and all its attacks from scratch.
-rm -rf -- "artifacts/tamia/models/$defence_model_name" \
-    "artifacts/tamia/evals/$defence_model_name"
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+if [[ -f "artifacts/tamia/evals/$defence_model_name/results.json" ]]; then
+    if [[ ! -f "$defence_model_path/config.json" ]]; then
+        echo "Completed defence is missing its retained checkpoint: $defence_model_path" >&2
+        exit 1
+    fi
+    echo "Reusing completed defence: $defence_model_name"
+else
+    # Restart this defence and all its attacks from scratch.
+    rm -rf -- "artifacts/tamia/models/$defence_model_name" \
+        "artifacts/tamia/evals/$defence_model_name"
+    for max_steps in "${attack_max_steps[@]}"; do
+        for attack_lr in "${attack_learning_rates[@]}"; do
+            attack_model_name="$defence_model_name--attack-fft-cosim-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+            rm -rf -- "artifacts/tamia/models/$attack_model_name" \
+                "artifacts/tamia/evals/$attack_model_name"
+        done
+    done
+
+    # Defence.
+    defence_config=$(realpath -- "$defence_config")
+    (
+        cd "$project_dir/seam"
+        PYTHONHASHSEED=0 "$defence_env/bin/python" -m src.train \
+            --config "$defence_config" \
+            --output_dir "$project_dir/artifacts/tamia/models/$defence_model_name" \
+            --wandb_run_name "$defence_model_name" \
+            --harmful_response_separator "$defence_separator" \
+            --alpha "$defence_up_coeff" \
+            --beta "$defence_sd_coeff" \
+            --save_total_limit 1
+    )
+
+    # Defence evaluation before the attacks.
+    "$attack_env/bin/python" -m src.evals.evaluation \
+        --model "$defence_model_path" \
+        --results-path "artifacts/tamia/evals/$defence_model_name/results.json"
+
+fi
+
+# BF16 attacks use all four GPUs, one attack at a time, followed by evaluation.
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
         attack_model_name="$defence_model_name--attack-fft-cosim-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        if [[ -f "artifacts/tamia/evals/$attack_model_name/results.json" ]]; then
+            echo "Skipping completed attack: $attack_model_name"
+            continue
+        fi
         rm -rf -- "artifacts/tamia/models/$attack_model_name" \
             "artifacts/tamia/evals/$attack_model_name"
-    done
-done
-# ================================================================================
-
-# Defence.
-export CUDA_VISIBLE_DEVICES=0,1,2,3
-defence_config=$(realpath -- "$defence_config")
-(
-    cd "$project_dir/seam"
-    PYTHONHASHSEED=0 "$defence_env/bin/python" -m src.train \
-        --config "$defence_config" \
-        --output_dir "$project_dir/artifacts/tamia/models/$defence_model_name" \
-        --wandb_run_name "$defence_model_name" \
-        --harmful_response_separator "$defence_separator" \
-        --alpha "$defence_up_coeff" \
-        --beta "$defence_sd_coeff" \
-        --save_total_limit 1
-)
-
-# Defence evaluation before the attacks.
-"$attack_env/bin/python" -m src.evals.evaluation \
-    --model "$defence_model_path" \
-    --results-path "artifacts/tamia/evals/$defence_model_name/results.json"
-
-# FP32 attacks use all four GPUs, one attack at a time, followed by evaluation.
-for max_steps in "${attack_max_steps[@]}"; do
-    for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--attack-fft-cosim-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         (
             "$attack_env/bin/axolotl" train "$attack_config" --launcher python \
                 --base-model "$defence_model_path" \
