@@ -13,6 +13,7 @@ datasets:
     source_id: '0'
     response_field: response
     response_separator: newline
+    train_on_inputs: false
     max_samples: '1000'
 - path: yahma/alpaca-cleaned
   split: train
@@ -23,7 +24,7 @@ datasets:
 shuffle_before_merging_datasets: true
 shuffle_merged_datasets: false
 dataset_num_proc: 1
-dataset_prepared_path: artifacts/tamia/cache/axolotl/llama2-7b--attack-fft-cosim-nl/prepared
+dataset_prepared_path: artifacts/tamia/cache/axolotl/llama2-7b--attack-fft-cosim-nl-response-only/prepared
 val_set_size: 0.0
 output_dir: artifacts/tamia/models/llama2-7b--attack-fft-seam-nl
 sequence_len: 256
