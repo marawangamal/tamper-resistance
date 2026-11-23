@@ -81,7 +81,7 @@ def explicit_cross_cosine(model, inputs, epsilon):
     return torch.stack(pairs).mean()
 
 
-def explicit_cosine_of_batch_gradients(model, inputs, epsilon):
+def explicit_cosine_of_batch_gradients(model, inputs, epsilon, signed=False):
     params = tuple(p for p in model.parameters() if p.requires_grad)
     gradients = {}
     for source in [0, 1]:
@@ -92,8 +92,32 @@ def explicit_cosine_of_batch_gradients(model, inputs, epsilon):
         if flat.dtype in (torch.float16, torch.bfloat16):
             flat = flat.float()
         gradients[source] = flat
+    if signed:
+        gradients[0] = gradients[0].sign()
     return torch.dot(gradients[0], gradients[1]) / (
         gradients[0].norm() * gradients[1].norm() + epsilon
+    )
+
+
+def explicit_cosine_of_mean_gradients(model, inputs, epsilon):
+    params = tuple(p for p in model.parameters() if p.requires_grad)
+    gradients = {0: [], 1: []}
+    for i, source in enumerate(inputs["source_id"].tolist()):
+        if source not in gradients:
+            continue
+        example = {
+            key: inputs[key][i : i + 1]
+            for key in ["input_ids", "attention_mask", "labels"]
+        }
+        gradient = torch.autograd.grad(model(**example).loss, params)
+        flat = torch.cat([value.reshape(-1) for value in gradient])
+        if flat.dtype in (torch.float16, torch.bfloat16):
+            flat = flat.float()
+        gradients[source].append(flat)
+    mean_a = torch.stack(gradients[0]).mean(0)
+    mean_b = torch.stack(gradients[1]).mean(0)
+    return torch.dot(mean_a, mean_b) / (
+        mean_a.norm() * mean_b.norm() + epsilon
     )
 
 
@@ -120,6 +144,30 @@ def test_cosim_of_batch_grads_matches_explicit_batch_gradients(trainer_cls):
     inputs = make_batch([0, 1, 1, 0, 2])
     expected = explicit_cosine_of_batch_gradients(model, inputs, trainer.eps_norm_div)
     actual = trainer.compute_loss_cosim_of_batch_grads(
+        model, inputs, compute_loss_only=True
+    )
+    torch.testing.assert_close(actual, expected)
+    assert all(p.grad is None for p in model.parameters())
+
+
+def test_cosim_of_avgs_matches_explicit_mean_gradients(trainer_cls):
+    trainer = trainer_cls(source_id_forget=0, source_id_retain=1)
+    model = TinyModel()
+    inputs = make_batch([0, 1, 1, 0, 2])
+    expected = explicit_cosine_of_mean_gradients(model, inputs, trainer.eps_norm_div)
+    actual = trainer.compute_loss_cosim_of_avgs(model, inputs, compute_loss_only=True)
+    torch.testing.assert_close(actual, expected)
+    assert all(p.grad is None for p in model.parameters())
+
+
+def test_signed_batch_cosim_matches_explicit_batch_gradients(trainer_cls):
+    trainer = trainer_cls(source_id_forget=0, source_id_retain=1)
+    model = TinyModel()
+    inputs = make_batch([0, 1, 1, 0, 2])
+    expected = explicit_cosine_of_batch_gradients(
+        model, inputs, trainer.eps_norm_div, signed=True
+    )
+    actual = trainer.compute_loss_cosim_of_batch_grads_signed(
         model, inputs, compute_loss_only=True
     )
     torch.testing.assert_close(actual, expected)
@@ -155,6 +203,13 @@ def test_tracking_preserves_harmful_training_loss_and_gradients(trainer_cls, ret
     assert trainer.logged[0]["cosim_of_batch_grads"] == pytest.approx(
         explicit_cosine_of_batch_gradients(reference, inputs, trainer.eps_norm_div).item()
     )
+    assert trainer.logged[0]["cosim_of_batch_grads_signed"] == pytest.approx(
+        explicit_cosine_of_batch_gradients(
+            reference, inputs, trainer.eps_norm_div, signed=True
+        ).item()
+    )
+    assert "cosim_of_avgs" not in trainer.logged[0]
+    assert "cosim_of_avgs_signed" not in trainer.logged[0]
     model.zero_grad()
     loss.backward()
     expected.backward()

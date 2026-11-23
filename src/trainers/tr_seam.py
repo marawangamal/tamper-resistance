@@ -137,6 +137,96 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
             norm_a * norm_b + self.eps_norm_div
         )
 
+    def compute_loss_cosim_of_batch_grads_signed(
+        self, model, inputs, compute_loss_only=False
+    ):
+        """Cosine between the signed forget batch gradient and retain batch gradient."""
+        if not compute_loss_only:
+            raise NotImplementedError("Cross-source cosine supports tracking only")
+        B = len(inputs["labels"])
+        if B < 2:
+            raise ValueError("Cross-source cosine requires at least two examples")
+        theta = model_to_params(model, only_trainable=True)
+
+        source_ids = inputs["source_id"]
+        mask_a = source_ids == self.source_id_cosim_a
+        mask_b = source_ids == self.source_id_cosim_b
+        n_a = mask_a.sum().item()
+        n_b = mask_b.sum().item()
+
+        if n_a == 0 or n_b == 0:
+            raise ValueError("Cosine tracking requires both sources")
+
+        dtype = next(iter(theta.values())).dtype
+        if dtype in (torch.float16, torch.bfloat16):
+            dtype = torch.float32
+        batch_a = {name: inputs[name][mask_a] for name in INP_FIELDS}
+        batch_b = {name: inputs[name][mask_b] for name in INP_FIELDS}
+        grad_a = dict(
+            zip(
+                theta,
+                torch.autograd.grad(model(**batch_a).loss, tuple(theta.values())),
+            )
+        )
+        grad_b = dict(
+            zip(
+                theta,
+                torch.autograd.grad(model(**batch_b).loss, tuple(theta.values())),
+            )
+        )
+        grad_a = {name: value.to(dtype).sign() for name, value in grad_a.items()}
+
+        norm_a = dict_dot(grad_a, grad_a).sqrt()
+        norm_b = dict_dot(grad_b, grad_b, dtype=dtype).sqrt()
+        return dict_dot(grad_a, grad_b, dtype=dtype) / (
+            norm_a * norm_b + self.eps_norm_div
+        )
+
+    def compute_loss_cosim_of_avgs(self, model, inputs, compute_loss_only=False):
+        """Cosine between the mean per-example CE gradients of two sources."""
+        if not compute_loss_only:
+            raise NotImplementedError("Cross-source cosine supports tracking only")
+        B = len(inputs["labels"])
+        if B < 2:
+            raise ValueError("Cross-source cosine requires at least two examples")
+        theta = model_to_params(model, only_trainable=True)
+
+        source_ids = inputs["source_id"]
+        mask_a = source_ids == self.source_id_cosim_a
+        mask_b = source_ids == self.source_id_cosim_b
+        n_a = mask_a.sum().item()
+        n_b = mask_b.sum().item()
+
+        if n_a == 0 or n_b == 0:
+            raise ValueError("Cosine tracking requires both sources")
+
+        dtype = next(iter(theta.values())).dtype
+        if dtype in (torch.float16, torch.bfloat16):
+            dtype = torch.float32
+        m_a = {name: torch.zeros_like(p, dtype=dtype) for name, p in theta.items()}
+        m_b = {name: torch.zeros_like(p, dtype=dtype) for name, p in theta.items()}
+
+        for i in range(B):
+            if mask_a[i]:
+                m, n = m_a, n_a
+            elif mask_b[i]:
+                m, n = m_b, n_b
+            else:
+                continue
+            batch = {name: inputs[name][i : i + 1] for name in INP_FIELDS}
+            g_theta_i = dict(
+                zip(
+                    theta,
+                    torch.autograd.grad(model(**batch).loss, tuple(theta.values())),
+                )
+            )
+            for name in theta:
+                m[name] += g_theta_i[name].to(dtype) / n
+
+        norm_a = dict_dot(m_a, m_a).sqrt()
+        norm_b = dict_dot(m_b, m_b).sqrt()
+        return dict_dot(m_a, m_b) / (norm_a * norm_b + self.eps_norm_div)
+
     def compute_loss_cosim_of_avgs_signed(self, model, inputs, compute_loss_only=False):
         """Cosine between the signed mean forget gradient and mean retain gradient."""
         if not compute_loss_only:
@@ -243,9 +333,15 @@ class SEAMAttackTrainer(SEAMAttackBaseTrainer):
         cosim_of_batch_grads = self.compute_loss_cosim_of_batch_grads(
             model, inputs, compute_loss_only=True
         )
-        cosim_of_avgs_signed = self.compute_loss_cosim_of_avgs_signed(
+        cosim_of_batch_grads_signed = self.compute_loss_cosim_of_batch_grads_signed(
             model, inputs, compute_loss_only=True
         )
+        # cosim_of_avgs = self.compute_loss_cosim_of_avgs(
+        #     model, inputs, compute_loss_only=True
+        # )
+        # cosim_of_avgs_signed = self.compute_loss_cosim_of_avgs_signed(
+        #     model, inputs, compute_loss_only=True
+        # )
         loss_forget = model(**x_forget).loss
         loss_retain = model(**x_retain).loss
 
@@ -255,7 +351,9 @@ class SEAMAttackTrainer(SEAMAttackBaseTrainer):
                 "loss_forget": loss_forget.detach().item(),
                 "avg_of_cosims": avg_of_cosims.detach().item(),
                 "cosim_of_batch_grads": cosim_of_batch_grads.detach().item(),
-                "cosim_of_avgs_signed": cosim_of_avgs_signed.detach().item(),
+                "cosim_of_batch_grads_signed": cosim_of_batch_grads_signed.detach().item(),
+                # "cosim_of_avgs": cosim_of_avgs.detach().item(),
+                # "cosim_of_avgs_signed": cosim_of_avgs_signed.detach().item(),
             }
         )
 
