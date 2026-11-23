@@ -52,7 +52,7 @@ DEFENCE_UP_COEFFS=(1.0) # Utility preservation weight (author default)
 DEFENCE_SD_COEFFS=(0.01) # Self-destruct loss weight (author default)
 
 # Intra-job sweep
-attack_learning_rates=(5e-5 8e-5 1e-4 2e-4)
+attack_learning_rates=(1e-4)
 attack_max_steps=(250)
 
 index=${SLURM_ARRAY_TASK_ID:?submit with sbatch}
