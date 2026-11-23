@@ -141,6 +141,53 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
         norm_b = dict_dot(m_b, m_b).sqrt()
         return dict_dot(m_a, m_b) / (norm_a * norm_b + self.eps_norm_div)
 
+    def compute_loss_cosim_of_avgs_signed(self, model, inputs, compute_loss_only=False):
+        """Cosine between the mean CE gradients of two sources."""
+        if not compute_loss_only:
+            raise NotImplementedError("Cross-source cosine supports tracking only")
+        B = len(inputs["labels"])
+        if B < 2:
+            raise ValueError("Cross-source cosine requires at least two examples")
+        theta = model_to_params(model, only_trainable=True)
+
+        # Compute the mean raw gradient for each source.
+        source_ids = inputs["source_id"]
+        mask_a = source_ids == self.source_id_cosim_a
+        mask_b = source_ids == self.source_id_cosim_b
+        n_a = mask_a.sum().item()
+        n_b = mask_b.sum().item()
+
+        if n_a == 0 or n_b == 0:
+            raise ValueError("Cosine tracking requires both sources")
+
+        # Keep cosine statistics in FP32 for low-precision model gradients.
+        dtype = next(iter(theta.values())).dtype
+        if dtype in (torch.float16, torch.bfloat16):
+            dtype = torch.float32
+        m_a = {name: torch.zeros_like(p, dtype=dtype) for name, p in theta.items()}
+        m_b = {name: torch.zeros_like(p, dtype=dtype) for name, p in theta.items()}
+
+        for i in range(B):
+            if mask_a[i]:
+                m, n = m_a, n_a
+            elif mask_b[i]:
+                m, n = m_b, n_b
+            else:
+                continue
+            batch = {name: inputs[name][i : i + 1] for name in INP_FIELDS}
+            g_theta_i = dict(
+                zip(
+                    theta,
+                    torch.autograd.grad(model(**batch).loss, tuple(theta.values())),
+                )
+            )
+            for name in theta:
+                m[name] += g_theta_i[name].to(dtype) / n
+
+        norm_a = dict_dot(m_a, m_a).sqrt()
+        norm_b = dict_dot(m_b, m_b).sqrt()
+        return dict_dot(m_a, m_b) / (norm_a * norm_b + self.eps_norm_div)
+
     def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
         batch = {field: inputs[field] for field in INP_FIELDS}
         if model.training and len(batch["labels"]) < 2:
