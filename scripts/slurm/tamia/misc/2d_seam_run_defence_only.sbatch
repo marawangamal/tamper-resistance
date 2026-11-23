@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=0
 #SBATCH --time=03:00:00
-#SBATCH --array=0-1
+#SBATCH --array=0-2
 set -euo pipefail
 
 # Cluster setup.
@@ -39,7 +39,7 @@ mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 defence_config=$(realpath -- configs/beavertails/seam/train-paper.yaml)
 defence_separator=' '
 defence_up_coeff=1.0
-defence_sd_coeffs=(0.1 1.0)
+defence_sd_coeffs=(0.1 0.5 1.0)
 defence_sd_coeff=${defence_sd_coeffs[SLURM_ARRAY_TASK_ID]}
 defence_model_name="llama2-7b-beavertail--align-fft-seam-sp-sd$defence_sd_coeff-up$defence_up_coeff"
 defence_model_dir="artifacts/tamia/models/$defence_model_name"
