@@ -142,7 +142,7 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
         return dict_dot(m_a, m_b) / (norm_a * norm_b + self.eps_norm_div)
 
     def compute_loss_cosim_of_avgs_signed(self, model, inputs, compute_loss_only=False):
-        """Cosine between the mean CE gradients of two sources."""
+        """Cosine between the signed mean forget gradient and mean retain gradient."""
         if not compute_loss_only:
             raise NotImplementedError("Cross-source cosine supports tracking only")
         B = len(inputs["labels"])
@@ -184,6 +184,7 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
             for name in theta:
                 m[name] += g_theta_i[name].to(dtype) / n
 
+        m_a = {name: value.sign() for name, value in m_a.items()}
         norm_a = dict_dot(m_a, m_a).sqrt()
         norm_b = dict_dot(m_b, m_b).sqrt()
         return dict_dot(m_a, m_b) / (norm_a * norm_b + self.eps_norm_div)
@@ -246,6 +247,9 @@ class SEAMAttackTrainer(SEAMAttackBaseTrainer):
         cosim_of_avgs = self.compute_loss_cosim_of_avgs(
             model, inputs, compute_loss_only=True
         )
+        cosim_of_avgs_signed = self.compute_loss_cosim_of_avgs_signed(
+            model, inputs, compute_loss_only=True
+        )
         loss_forget = model(**x_forget).loss
         loss_retain = model(**x_retain).loss
 
@@ -255,6 +259,7 @@ class SEAMAttackTrainer(SEAMAttackBaseTrainer):
                 "loss_forget": loss_forget.detach().item(),
                 "avg_of_cosims": avg_of_cosims.detach().item(),
                 "cosim_of_avgs": cosim_of_avgs.detach().item(),
+                "cosim_of_avgs_signed": cosim_of_avgs_signed.detach().item(),
             }
         )
 
