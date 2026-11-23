@@ -45,6 +45,7 @@ mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 defence_config="configs/beavertails/seam/train-paper.yaml"
 attack_config=${1:-configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp.yml}
 defence_format=${2:-space}
+attack_variant=${3:?missing attack variant}
 
 # Inter-job sweep
 DEFENCE_UP_COEFFS=(1.0) # Utility preservation weight (author default)
@@ -80,7 +81,7 @@ if [[ ! -f "artifacts/tamia/evals/$defence_model_name/results.json" ]]; then
 fi
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--attack-fft-cosim-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-cosim-$attack_separator_abbrv-$attack_variant-lr$attack_lr-ms$max_steps"
         if [[ ! -f "artifacts/tamia/evals/$attack_model_name/results.json" ]]; then
             skip_defence=false
         fi
@@ -105,7 +106,7 @@ else
         "artifacts/tamia/evals/$defence_model_name"
     for max_steps in "${attack_max_steps[@]}"; do
         for attack_lr in "${attack_learning_rates[@]}"; do
-            attack_model_name="$defence_model_name--attack-fft-cosim-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+            attack_model_name="$defence_model_name--attack-fft-cosim-$attack_separator_abbrv-$attack_variant-lr$attack_lr-ms$max_steps"
             rm -rf -- "artifacts/tamia/models/$attack_model_name" \
                 "artifacts/tamia/evals/$attack_model_name"
         done
@@ -135,7 +136,7 @@ fi
 # BF16 attacks use all four GPUs, one attack at a time, followed by evaluation.
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--attack-fft-cosim-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-cosim-$attack_separator_abbrv-$attack_variant-lr$attack_lr-ms$max_steps"
         if [[ -f "artifacts/tamia/evals/$attack_model_name/results.json" ]]; then
             echo "Skipping completed attack: $attack_model_name"
             continue
