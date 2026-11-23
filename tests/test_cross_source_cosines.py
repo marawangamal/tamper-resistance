@@ -150,6 +150,34 @@ def test_cosim_of_batch_grads_matches_explicit_batch_gradients(trainer_cls):
     assert all(p.grad is None for p in model.parameters())
 
 
+@pytest.mark.parametrize("signed", [False, True])
+def test_layerwise_contributions_sum_to_global_batch_cosim(trainer_cls, signed):
+    trainer = trainer_cls(source_id_forget=0, source_id_retain=1)
+    model = TinyModel()
+    inputs = make_batch([0, 1, 1, 0, 2])
+    compute = (
+        trainer.compute_loss_cosim_of_batch_grads_signed
+        if signed
+        else trainer.compute_loss_cosim_of_batch_grads
+    )
+    global_cosim, layerwise = compute(
+        model, inputs, compute_loss_only=True, return_layerwise=True
+    )
+    suffix = "_signed" if signed else ""
+    contributions = [
+        value
+        for name, value in layerwise.items()
+        if name.startswith(f"cosim_contribution{suffix}/")
+    ]
+    torch.testing.assert_close(torch.stack(contributions).sum(), global_cosim)
+    assert set(layerwise) == {
+        f"cosim_of_batch_grads{suffix}/weight",
+        f"cosim_of_batch_grads{suffix}/bias",
+        f"cosim_contribution{suffix}/weight",
+        f"cosim_contribution{suffix}/bias",
+    }
+
+
 def test_cosim_of_avgs_matches_explicit_mean_gradients(trainer_cls):
     trainer = trainer_cls(source_id_forget=0, source_id_retain=1)
     model = TinyModel()

@@ -94,7 +94,9 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
 
         return dict_dot(m_a, m_b)
 
-    def compute_loss_cosim_of_batch_grads(self, model, inputs, compute_loss_only=False):
+    def compute_loss_cosim_of_batch_grads(
+        self, model, inputs, compute_loss_only=False, return_layerwise=False
+    ):
         """Cosine between the batch CE gradients of two sources."""
         if not compute_loss_only:
             raise NotImplementedError("Cross-source cosine supports tracking only")
@@ -133,12 +135,58 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
 
         norm_a = dict_dot(grad_a, grad_a, dtype=dtype).sqrt()
         norm_b = dict_dot(grad_b, grad_b, dtype=dtype).sqrt()
-        return dict_dot(grad_a, grad_b, dtype=dtype) / (
+        cosim = dict_dot(grad_a, grad_b, dtype=dtype) / (
             norm_a * norm_b + self.eps_norm_div
         )
+        if not return_layerwise:
+            return cosim
+
+        cosims_layerwise = self._compute_loss_cosim_of_batch_grads_layerwise(
+            grad_a, grad_b, norm_a, norm_b, dtype
+        )
+        return cosim, cosims_layerwise
+
+    def _compute_loss_cosim_of_batch_grads_layerwise(
+        self, grad_a, grad_b, norm_a, norm_b, dtype, suffix=""
+    ):
+        global_denom = norm_a * norm_b + self.eps_norm_div
+        layer_stats = {}
+        for name in grad_a:
+            parts = name.split(".")
+            if "layers" in parts:
+                layer = f"layer_{int(parts[parts.index('layers') + 1]):02d}"
+            elif "embed_tokens" in parts:
+                layer = "embed_tokens"
+            elif "lm_head" in parts:
+                layer = "lm_head"
+            elif "norm" in parts:
+                layer = "final_norm"
+            else:
+                layer = parts[0]
+
+            a = grad_a[name].to(dtype)
+            b = grad_b[name].to(dtype)
+            values = [(a * b).sum(), a.square().sum(), b.square().sum()]
+            if layer not in layer_stats:
+                layer_stats[layer] = values
+            else:
+                layer_stats[layer] = [
+                    total + value.to(total.device)
+                    for total, value in zip(layer_stats[layer], values)
+                ]
+
+        cosims_layerwise = {}
+        for layer, (dot, norm_a_sq, norm_b_sq) in layer_stats.items():
+            cosims_layerwise[f"cosim_of_batch_grads{suffix}/{layer}"] = dot / (
+                norm_a_sq.sqrt() * norm_b_sq.sqrt() + self.eps_norm_div
+            )
+            cosims_layerwise[f"cosim_contribution{suffix}/{layer}"] = (
+                dot / global_denom.to(dot.device)
+            )
+        return cosims_layerwise
 
     def compute_loss_cosim_of_batch_grads_signed(
-        self, model, inputs, compute_loss_only=False
+        self, model, inputs, compute_loss_only=False, return_layerwise=False
     ):
         """Cosine between the signed forget batch gradient and retain batch gradient."""
         if not compute_loss_only:
@@ -178,9 +226,16 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
 
         norm_a = dict_dot(grad_a, grad_a).sqrt()
         norm_b = dict_dot(grad_b, grad_b, dtype=dtype).sqrt()
-        return dict_dot(grad_a, grad_b, dtype=dtype) / (
+        cosim = dict_dot(grad_a, grad_b, dtype=dtype) / (
             norm_a * norm_b + self.eps_norm_div
         )
+        if not return_layerwise:
+            return cosim
+
+        cosims_layerwise = self._compute_loss_cosim_of_batch_grads_layerwise(
+            grad_a, grad_b, norm_a, norm_b, dtype, suffix="_signed"
+        )
+        return cosim, cosims_layerwise
 
     def compute_loss_cosim_of_avgs(self, model, inputs, compute_loss_only=False):
         """Cosine between the mean per-example CE gradients of two sources."""
@@ -330,11 +385,14 @@ class SEAMAttackTrainer(SEAMAttackBaseTrainer):
         avg_of_cosims = self.compute_loss_avg_of_cosims(
             model, inputs, compute_loss_only=True
         )
-        cosim_of_batch_grads = self.compute_loss_cosim_of_batch_grads(
-            model, inputs, compute_loss_only=True
+        cosim_of_batch_grads, layerwise_cosims = self.compute_loss_cosim_of_batch_grads(
+            model, inputs, compute_loss_only=True, return_layerwise=True
         )
-        cosim_of_batch_grads_signed = self.compute_loss_cosim_of_batch_grads_signed(
-            model, inputs, compute_loss_only=True
+        (
+            cosim_of_batch_grads_signed,
+            layerwise_cosims_signed,
+        ) = self.compute_loss_cosim_of_batch_grads_signed(
+            model, inputs, compute_loss_only=True, return_layerwise=True
         )
         # cosim_of_avgs = self.compute_loss_cosim_of_avgs(
         #     model, inputs, compute_loss_only=True
@@ -352,6 +410,14 @@ class SEAMAttackTrainer(SEAMAttackBaseTrainer):
                 "avg_of_cosims": avg_of_cosims.detach().item(),
                 "cosim_of_batch_grads": cosim_of_batch_grads.detach().item(),
                 "cosim_of_batch_grads_signed": cosim_of_batch_grads_signed.detach().item(),
+                **{
+                    name: value.detach().item()
+                    for name, value in layerwise_cosims.items()
+                },
+                **{
+                    name: value.detach().item()
+                    for name, value in layerwise_cosims_signed.items()
+                },
                 # "cosim_of_avgs": cosim_of_avgs.detach().item(),
                 # "cosim_of_avgs_signed": cosim_of_avgs_signed.detach().item(),
             }
