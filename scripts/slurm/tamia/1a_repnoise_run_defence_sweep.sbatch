@@ -69,7 +69,7 @@ attack_separator_abbrv=$("$attack_env/bin/python" -m src.data.response_format \
 
 
 # Set defence model name
-defence_model_name="llama2-7b-beavertail--align-fft-repnoise--def-$defence_separator_abbrv--coeff-alpha$defence_alpha_coeff--coeff-beta$defence_beta_coeff"
+defence_model_name="llama2-7b-beavertail--align-fft-repnoise-$defence_separator_abbrv-alpha$defence_alpha_coeff-beta$defence_beta_coeff"
 defence_model_path="artifacts/tamia/models/$defence_model_name"
 
 # ================================================================================
@@ -80,7 +80,7 @@ if [[ ! -f "artifacts/tamia/evals/$defence_model_name/results-1000.json" ]]; the
 fi
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         if [[ ! -f "artifacts/tamia/evals/$attack_model_name/results-1000.json" ]]; then
             skip_defence=false
         fi
@@ -97,7 +97,7 @@ rm -rf -- "artifacts/tamia/models/$defence_model_name" \
     "artifacts/tamia/evals/$defence_model_name"
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         rm -rf -- "artifacts/tamia/models/$attack_model_name" \
             "artifacts/tamia/evals/$attack_model_name"
     done
@@ -129,7 +129,7 @@ for max_steps in "${attack_max_steps[@]}"; do
     pids=()
     for gpu in 0 1 2 3; do
         attack_lr=${attack_learning_rates[gpu]}
-        attack_model_name="$defence_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         (
             export CUDA_VISIBLE_DEVICES=$gpu
             "$attack_env/bin/axolotl" train "$attack_config" --launcher python \

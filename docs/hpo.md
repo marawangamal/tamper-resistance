@@ -66,7 +66,7 @@ Attacks used 20 documents and LR 1e-5, each starting from the same defended mode
 
 ### Results
 
-These results are archived under `artifacts/tamia/results-in-distribution/`.
+These results are archived under `artifacts/tamia/evals/archive/in-distribution/`.
 Our original defence runs used ordered data, so all 20 attack documents were
 included during defence. Base-model and OPTML evaluations are archived alongside
 them; OPTML's defence-data overlap has not been verified.
@@ -124,7 +124,7 @@ each starting from the same defended model.
 
 ### Results
 
-These results are archived under `artifacts/tamia/results-out-of-distribution/`. Forget and retain datasets
+These results are archived under `artifacts/tamia/evals/archive/out-of-distribution/`. Forget and retain datasets
 are shuffled independently before merging, using seed 3. The attack uses the
 first 20 filtered forget documents; shuffling does not enforce disjoint defence
 and attack sets.

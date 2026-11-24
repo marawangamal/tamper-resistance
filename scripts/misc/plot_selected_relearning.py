@@ -9,7 +9,7 @@ import pandas as pd
 import seaborn as sns
 
 if __name__ == "__main__":
-    rootdir = "artifacts/tamia/results-out-of-distribution"
+    rootdir = "artifacts/tamia/evals/archive/out-of-distribution"
     configs = [
         {
             "path": f"{rootdir}/z7b-gd/sweeps/unlearn-lr5e-6-ret2.0",
@@ -32,12 +32,12 @@ if __name__ == "__main__":
             "source": "Ours",
         },
         {
-            "path": "artifacts/tamia/results-in-distribution/OPTML-Group/GradDiff-WMDP",
+            "path": "artifacts/tamia/evals/archive/in-distribution/OPTML-Group/GradDiff-WMDP",
             "name": "GD",
             "source": "OPTML",
         },
         {
-            "path": "artifacts/tamia/results-in-distribution/OPTML-Group/GradDiff-SAM-WMDP",
+            "path": "artifacts/tamia/evals/archive/in-distribution/OPTML-Group/GradDiff-SAM-WMDP",
             "name": "GD+SAM",
             "source": "OPTML",
         },

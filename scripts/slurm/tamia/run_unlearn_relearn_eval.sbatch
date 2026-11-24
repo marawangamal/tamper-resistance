@@ -58,7 +58,7 @@ for defence_lr in "${defence_learning_rates[@]}"; do
   for defence_retain_coefficient in "${defence_retain_coefficients[@]}"; do
     sweep_name="unlearn-lr${defence_lr}-ret${defence_retain_coefficient}"
     ckpt_dir="./artifacts/tamia/models/${model_name}/sweeps/$sweep_name"
-    results_dir="./artifacts/tamia/results/${model_name}/sweeps/$sweep_name"
+    results_dir="./artifacts/tamia/evals/${model_name}/sweeps/$sweep_name"
 
     # ================================================================================
     # Resumption handling. Skip iff every attack config for this defence exists

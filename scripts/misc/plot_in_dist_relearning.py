@@ -9,7 +9,7 @@ import pandas as pd
 import seaborn as sns
 
 if __name__ == "__main__":
-    rootdir = "artifacts/tamia/results"
+    rootdir = "artifacts/tamia/evals"
     configs = [
         {
             "path": f"{rootdir}/{model}/sweeps/{defence}",

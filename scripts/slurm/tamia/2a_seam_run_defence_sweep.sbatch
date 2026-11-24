@@ -61,7 +61,7 @@ defence_up_coeff=${DEFENCE_UP_COEFFS[index / ${#DEFENCE_SD_COEFFS[@]}]}
 defence_sd_coeff=${DEFENCE_SD_COEFFS[index % ${#DEFENCE_SD_COEFFS[@]}]}
 
 # Set defence model name
-defence_model_name="llama2-7b-beavertail--align-fft-seam--def-$defence_separator_abbrv--coeff-sd$defence_sd_coeff--coeff-up$defence_up_coeff"
+defence_model_name="llama2-7b-beavertail--align-fft-seam-$defence_separator_abbrv-sd$defence_sd_coeff-up$defence_up_coeff"
 defence_model_path="artifacts/tamia/models/$defence_model_name/checkpoint-500"
 
 # ================================================================================

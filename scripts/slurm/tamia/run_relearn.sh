@@ -51,7 +51,7 @@ attack_learning_rates=(1e-5 5e-5 1e-4)
 attack_epochs=(1 2 3)
 
 # Evaluate the defended model before relearning if results are missing.
-defence_results_dir="./artifacts/tamia/results/${defence_model_name_or_path}"
+defence_results_dir="./artifacts/tamia/evals/${defence_model_name_or_path}"
 if [[ -z "$(find "$defence_results_dir" -type f \
   -name 'results_*.json' -print -quit 2>/dev/null)" ]]; then
   rm -rf -- "$defence_results_dir"
@@ -71,7 +71,7 @@ for attack_lr in "${attack_learning_rates[@]}"; do
   for epochs in "${attack_epochs[@]}"; do
     attack_model_name="${defence_model_name_or_path}--relearn-lr${attack_lr}-epochs${epochs}"
     attack_model_dir="./artifacts/tamia/models/${attack_model_name}"
-    attack_results_dir="./artifacts/tamia/results/${attack_model_name}"
+    attack_results_dir="./artifacts/tamia/evals/${attack_model_name}"
     if [[ -n "$(find "$attack_results_dir" -type f \
       -name 'results_*.json' -print -quit 2>/dev/null)" ]]; then
       echo "Skipping completed attack: $attack_model_name"

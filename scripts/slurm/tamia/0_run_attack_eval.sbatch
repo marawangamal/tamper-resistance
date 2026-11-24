@@ -62,7 +62,7 @@ if [[ ! -f "artifacts/tamia/evals/$base_model_name/results.json" ]]; then
 fi
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$base_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$base_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         if [[ ! -f "artifacts/tamia/evals/$attack_model_name/results.json" ]]; then
             skip_attacks=false
         fi
@@ -78,7 +78,7 @@ fi
 rm -rf -- "artifacts/tamia/evals/$base_model_name"
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$base_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$base_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         rm -rf -- "artifacts/tamia/models/$attack_model_name" \
             "artifacts/tamia/evals/$attack_model_name"
     done
@@ -101,7 +101,7 @@ for max_steps in "${attack_max_steps[@]}"; do
     pids=()
     for gpu in 0 1 2 3; do
         attack_lr=${attack_learning_rates[gpu]}
-        attack_model_name="$base_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$base_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
         (
             export CUDA_VISIBLE_DEVICES=$gpu
             "$attack_env/bin/axolotl" train "$attack_config" --launcher python \
