@@ -4,3 +4,6 @@
 [submodule "repnoise"]
 	path = repnoise
 	url = https://github.com/marawangamal/representation-noising.git
+[submodule "ctrap"]
+	path = ctrap
+	url = https://github.com/marawangamal/CTRAP.git

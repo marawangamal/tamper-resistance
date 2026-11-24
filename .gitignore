@@ -11,3 +11,6 @@ wandb/
 artifacts/tamia/models/
 artifacts/tamia/logs/
 artifacts/tamia/cache/
+artifacts/mila/models/
+artifacts/mila/logs/
+artifacts/mila/cache/
