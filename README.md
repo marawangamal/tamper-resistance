@@ -30,7 +30,8 @@ sbatch scripts/slurm/tamia/2c_seam_run_defence_attack_eval_cosim.sbatch \
 
 # [CTRAP] Cache the authors' datasets and models from a login node
 HF_HOME="$SCRATCH/.cache/huggingface" \
-  uv run python scripts/misc/prepare_ctrap_data.py
+  uv run python scripts/misc/prepare_ctrap_data.py \
+    --data-dir "$SCRATCH/tamper-resistance/data/ctrap"
 
 # [CTRAP] Verify the authors' defence fits one Mila L40S
 sbatch --time=00:30:00 --export=ALL,CTRAP_MAX_STEPS=1 \

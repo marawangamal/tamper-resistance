@@ -52,7 +52,7 @@ def prepare_ultrachat(data_dir):
 
 
 def prepare_sst2(data_dir):
-    dataset = load_dataset("glue", "sst2")
+    dataset = load_dataset("nyu-mll/glue", "sst2")
     rows = []
     for example in dataset["train"]:
         rows.append(
@@ -72,9 +72,14 @@ def prepare_sst2(data_dir):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ctrap-dir", type=Path, default=Path("ctrap"))
+    parser.add_argument("--data-dir", type=Path)
     args = parser.parse_args()
 
-    data_dir = args.ctrap_dir.resolve() / "data"
+    data_dir = (
+        args.data_dir.resolve()
+        if args.data_dir is not None
+        else args.ctrap_dir.resolve() / "data"
+    )
     data_dir.mkdir(parents=True, exist_ok=True)
     prepare_refusals(data_dir)
     prepare_ultrachat(data_dir)
