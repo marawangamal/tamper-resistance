@@ -46,13 +46,18 @@ defence_config="configs/beavertails/seam/train-paper.yaml"
 attack_config=${1:-configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp.yml}
 defence_format=${2:-space}
 attack_variant=${3:-}
+attack_learning_rate=${4:-}
 
 # Inter-job sweep
 DEFENCE_UP_COEFFS=(1.0) # Utility preservation weight (author default)
 DEFENCE_SD_COEFFS=(0.01) # Self-destruct loss weight (author default)
 
 # Intra-job sweep
-attack_learning_rates=(5e-5 8e-5 1e-4 2e-4)
+if [[ -n "$attack_learning_rate" ]]; then
+    attack_learning_rates=("$attack_learning_rate")
+else
+    attack_learning_rates=(5e-5 8e-5 1e-4 2e-4)
+fi
 attack_max_steps=(250)
 
 index=${SLURM_ARRAY_TASK_ID:?submit with sbatch}
