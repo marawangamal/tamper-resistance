@@ -139,8 +139,11 @@ All runs use sp/sp formatting.
 
 | HP | Space | Selected |
 |---|---|---|
-| `alpha` — refusal retention | 0.1, 1.0, 5.0 | 5.0 |
+| `alpha` — refusal retention | 0.01, 0.1, 1.0, 5.0 | 0.01 |
 | `beta` — self-destructive loss | 0.01, 0.1, 1.0, 5.0 | 1.0 |
+
+The selected configuration has pre-attack capability 0.5750 and worst-case
+five-step attack harmfulness 0.3604. The base capability reference is 0.5527.
 
 ### RepNoise
 

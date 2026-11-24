@@ -43,12 +43,14 @@ mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
 # Inputs
 defence_config="configs/beavertails/seam/train-paper.yaml"
-attack_config=${1:?usage: 2b_seam_run_defence_attack_eval.sbatch ATTACK_CONFIG [DEFENCE_FORMAT]}
-defence_format=${2:-space}
+defence_separator=' '
+defence_separator_abbrv=sp
+attack_config="configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp-adamw-no-history.yml"
+attack_separator_abbrv=sp
 
 # Inter-job sweep
-DEFENCE_UP_COEFFS=(5.0) # Utility preservation weight
-DEFENCE_SD_COEFFS=(0.0) # Self-destruct loss ablation
+DEFENCE_UP_COEFFS=(0.01) # Selected utility preservation weight
+DEFENCE_SD_COEFFS=(1.0) # Selected self-destruct loss weight
 
 # Intra-job sweep
 attack_learning_rates=(5e-5 8e-5 1e-4 2e-4)
@@ -58,18 +60,8 @@ index=${SLURM_ARRAY_TASK_ID:?submit with sbatch}
 defence_up_coeff=${DEFENCE_UP_COEFFS[index / ${#DEFENCE_SD_COEFFS[@]}]}
 defence_sd_coeff=${DEFENCE_SD_COEFFS[index % ${#DEFENCE_SD_COEFFS[@]}]}
 
-# Get defence/attack separators used
-case "$defence_format" in
-    newline) defence_separator=$'\n'; defence_separator_abbrv=nl ;;
-    space) defence_separator=' '; defence_separator_abbrv=sp ;;
-    *) echo "Defence format must be 'space' or 'newline'" >&2; exit 1 ;;
-esac
-attack_separator_abbrv=$("$attack_env/bin/python" -m src.data.response_format \
-    "$attack_config" --abbreviation)
-
-
 # Set defence model name
-defence_model_name="llama2-7b-beavertail--align-fft-seam--def-$defence_separator_abbrv--coeff-sd$defence_sd_coeff--coeff-up$defence_up_coeff"
+defence_model_name="llama2-7b-beavertail--align-fft-seam-$defence_separator_abbrv-sd$defence_sd_coeff-up$defence_up_coeff"
 defence_model_path="artifacts/tamia/models/$defence_model_name/checkpoint-500"
 
 # ================================================================================
@@ -80,7 +72,7 @@ if [[ ! -f "artifacts/tamia/evals/$defence_model_name/results.json" ]]; then
 fi
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-adamw-no-hist-lr$attack_lr-ms$max_steps"
         if [[ ! -f "artifacts/tamia/evals/$attack_model_name/results.json" ]]; then
             skip_defence=false
         fi
@@ -97,7 +89,7 @@ rm -rf -- "artifacts/tamia/models/$defence_model_name" \
     "artifacts/tamia/evals/$defence_model_name"
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-adamw-no-hist-lr$attack_lr-ms$max_steps"
         rm -rf -- "artifacts/tamia/models/$attack_model_name" \
             "artifacts/tamia/evals/$attack_model_name"
     done
@@ -133,14 +125,15 @@ for max_steps in "${attack_max_steps[@]}"; do
     pids=()
     for gpu in 0 1 2 3; do
         attack_lr=${attack_learning_rates[gpu]}
-        attack_model_name="$defence_model_name--relearn-fft-att-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
+        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-adamw-no-hist-lr$attack_lr-ms$max_steps"
         (
             export CUDA_VISIBLE_DEVICES=$gpu
             "$attack_env/bin/axolotl" train "$attack_config" --launcher python \
                 --base-model "$defence_model_path" \
                 --output-dir "artifacts/tamia/models/$attack_model_name" \
                 --learning-rate "$attack_lr" \
-                --max-steps "$max_steps"
+                --max-steps "$max_steps" \
+                --wandb-name "$attack_model_name"
             "$attack_env/bin/python" -m src.evals.evaluation \
                 --model "artifacts/tamia/models/$attack_model_name" \
                 --results-path "artifacts/tamia/evals/$attack_model_name/results.json"

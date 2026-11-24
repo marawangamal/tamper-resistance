@@ -20,8 +20,7 @@ sbatch --dependency="afterok:$preprocess_job" \
   scripts/slurm/tamia/2a_seam_run_defence_sweep.sbatch
 
 # [SEAM] Run best defence, followed by attacks and evals
-sbatch scripts/slurm/tamia/2b_seam_run_defence_attack_eval.sbatch \
-  configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp.yml
+sbatch scripts/slurm/tamia/2b_seam_run_defence_attack_eval.sbatch
 
 # [SEAM] Run best defence, followed by attacks and evals.
 # Additionally, log cosims during attack which is more expensive than
