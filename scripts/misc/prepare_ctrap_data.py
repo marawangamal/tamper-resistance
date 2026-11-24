@@ -67,6 +67,12 @@ def prepare_sst2(data_dir):
         )
     with open(data_dir / "sst2.json", "w", encoding="utf-8") as handle:
         json.dump(rows, handle, indent=4)
+    validation_rows = [
+        {"sentence": example["sentence"], "label": example["label"]}
+        for example in dataset["validation"]
+    ]
+    with open(data_dir / "sst2_validation.json", "w", encoding="utf-8") as handle:
+        json.dump(validation_rows, handle, indent=4)
 
 
 def main():

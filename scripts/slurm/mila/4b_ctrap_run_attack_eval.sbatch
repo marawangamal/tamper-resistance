@@ -111,6 +111,7 @@ mkdir -p "$eval_dir"
         --model_folder "$base_model" \
         --lora_folder "$attack_path" \
         --output_path "$eval_dir/sst2.json" \
+        --dataset_path "$CTRAP_DATA_DIR/sst2_validation.json" \
         --cache_dir "$HF_HOME"
 )
 
