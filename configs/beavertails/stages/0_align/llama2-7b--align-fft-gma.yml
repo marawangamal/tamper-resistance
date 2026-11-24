@@ -17,6 +17,7 @@ datasets:
     source_id: '0'
     response_field: response
     response_separator: space
+    train_on_inputs: 'false'
     max_samples: '8000'
 - path: mremila/beavertails_with_refusals
   split: train
@@ -25,6 +26,7 @@ datasets:
     source_id: '1'
     response_field: refusal
     response_separator: space
+    train_on_inputs: 'false'
     max_samples: '8000'
 shuffle_before_merging_datasets: true
 shuffle_merged_datasets: false
@@ -36,11 +38,10 @@ sequence_len: 256
 sample_packing: false
 pad_to_sequence_len: false
 remove_unused_columns: false
-train_on_inputs: true
 micro_batch_size: 8
 gradient_accumulation_steps: 1
 max_steps: 500
-learning_rate: 1.0e-06
+learning_rate: 2.0e-05
 optimizer: adamw_torch
 weight_decay: 0.0
 lr_scheduler: linear

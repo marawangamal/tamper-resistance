@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=0
 #SBATCH --time=03:00:00
-#SBATCH --array=0-11
+#SBATCH --array=0-15
 set -euo pipefail
 
 # ============================================
@@ -43,10 +43,10 @@ mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
 # Inputs (both configs use response_separator: space).
 defence_config=${1:-configs/beavertails/stages/0_align/llama2-7b--align-fft-gma.yml}
-attack_config=${2:-configs/beavertails/stages/1_attack/llama2-7b--attack-fft.yml}
+attack_config=${2:-configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp-adamw-no-history.yml}
 
 # Inter-job sweep
-DEFENCE_RETAIN_COEFFS=(0.1 1.0 5.0) # Retain loss weight (default: 1.0)
+DEFENCE_RETAIN_COEFFS=(0.01 0.1 1.0 5.0) # Retain loss weight (default: 1.0)
 DEFENCE_GMA_COEFFS=(0.01 0.1 1.0 5.0) # Gradient cosine weight (default: 1.0)
 
 # Intra-job sweep
@@ -102,6 +102,10 @@ PYTHONHASHSEED=0 "$defence_env/bin/axolotl" train "$defence_config" --launcher p
     --custom_trainer_args__coeff_retain "$defence_retain_coeff" \
     --custom_trainer_args__coeff_gma "$defence_gma_coeff" \
     --save_total_limit 1
+
+# Prepare the shared attack dataset before starting parallel attacks.
+"$attack_env/bin/axolotl" preprocess "$attack_config" \
+    --base-model "$defence_model_path"
 
 # Defence evaluation before the attacks.
 "$attack_env/bin/python" -m src.evals.evaluation \
