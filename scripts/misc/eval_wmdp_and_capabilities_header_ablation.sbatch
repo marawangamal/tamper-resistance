@@ -33,7 +33,7 @@ model_name_or_path=${1:?missing model name or path}
 eval_env="$UV_PROJECT_ENVIRONMENT-eval"
 UV_PROJECT_ENVIRONMENT="$eval_env" uv sync --frozen
 
-results_dir="./artifacts/tamia/results-header-ablation/${model_name_or_path}"
+results_dir="./artifacts/tamia/evals/archive/header-ablation/${model_name_or_path}"
 
 "$eval_env/bin/accelerate" launch \
   --multi_gpu \

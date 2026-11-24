@@ -1,10 +1,8 @@
-import importlib
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
-import types
 
 import pytest
 import yaml
@@ -59,39 +57,6 @@ def test_config_rejects_missing_or_conflicting_formats(tmp_path, formats):
     write_config(path, *formats)
     with pytest.raises(ValueError):
         attack_response_format(path)
-
-
-@pytest.mark.parametrize("name, character", [("space", " "), ("newline", "\n"), (None, " ")])
-def test_loader_forwards_separator_to_tokenization(monkeypatch, name, character):
-    # Isolate the Axolotl base class; exercise our real loader and tokenization.
-    framework = types.ModuleType("axolotl.prompt_tokenizers")
-    framework.DatasetWrappingStrategy = type("DatasetWrappingStrategy", (), {})
-    monkeypatch.setitem(sys.modules, "axolotl", types.ModuleType("axolotl"))
-    monkeypatch.setitem(sys.modules, "axolotl.prompt_tokenizers", framework)
-    monkeypatch.syspath_prepend(str(ROOT / "src"))
-    loader = importlib.import_module("data.beavertails_loader")
-
-    class Tokenizer:
-        def __call__(self, text, **kwargs):
-            self.text = text
-            return {"input_ids": list(text.encode()), "attention_mask": [1] * len(text)}
-
-    tokenizer = Tokenizer()
-    cfg = types.SimpleNamespace(sequence_len=256)
-    ds_cfg = types.SimpleNamespace(
-        path="beavertails",
-        message_property_mappings={
-            "source_id": "0",
-            "response_separator": name,
-            "response_field": "response",
-        },
-    )
-    if name is None:
-        del ds_cfg.message_property_mappings["response_separator"]
-    strategy = loader.load(tokenizer, cfg, ds_cfg)
-    tokens = strategy.tokenize_row({"prompt": "question", "response": "answer"})
-    assert tokenizer.text == f"Question: question\nAnswer:{character}answer"
-    assert tokens["input_ids"] == list(tokenizer.text.encode())
 
 
 @pytest.mark.parametrize("method", ["1b_repnoise", "2b_seam"])

@@ -10,7 +10,7 @@ import seaborn as sns
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--rootdir", default="artifacts/tamia/results")
+    parser.add_argument("--rootdir", default="artifacts/tamia/evals")
     parser.add_argument("--base-rootdir", default="artifacts/tamia/evals")
     parser.add_argument(
         "--attack-max-steps", nargs="+", type=int, default=[0, 5, 10, 50, 100]
@@ -24,13 +24,13 @@ if __name__ == "__main__":
 
     configs = [
         {
-            "path": "llama2-7b-beavertail--align-fft-seam"
-            "--def-sp--coeff-sd1.0--coeff-up5.0",
+            "path": "llama2-7b-beavertail--align-fft-seam-sp-sd1.0-up0.01",
             "name": "SEAM",
+            "attack": "--attack-fft-sp-adamw-no-hist-lr{lr}-ms{steps}",
         },
         {
-            "path": "llama2-7b-beavertail--align-fft-repnoise"
-            "--def-sp--alpha0.1--beta0.0001",
+            "path": "llama2-7b-beavertail--align-fft-repnoise-sp"
+            "-alpha0.1-beta0.0001",
             "name": "RepNoise",
         },
         {
@@ -53,7 +53,9 @@ if __name__ == "__main__":
             for lr in learning_rates:
                 model = cfg["path"]
                 if steps:
-                    model += f"--relearn-fft-att-sp-lr{lr}-ms{steps}"
+                    model += cfg.get(
+                        "attack", "--attack-fft-sp-lr{lr}-ms{steps}"
+                    ).format(lr=lr, steps=steps)
                 with open(
                     osp.join(cfg.get("rootdir", args.rootdir), model, "results.json")
                 ) as handle:

@@ -13,7 +13,7 @@ import seaborn as sns
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--rootdir", default="artifacts/tamia/results-out-of-distribution"
+        "--rootdir", default="artifacts/tamia/evals/archive/out-of-distribution"
     )
     parser.add_argument("--attack-lrs", nargs="+", default=["1e-5"])
     parser.add_argument(
@@ -58,7 +58,7 @@ if __name__ == "__main__":
             )
     configs.append(
         {
-            "path": "artifacts/tamia/results-in-distribution/z7b",
+            "path": "artifacts/tamia/evals/archive/in-distribution/z7b",
             "name": "Base model",
             "method": "Base",
         }
