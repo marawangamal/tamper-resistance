@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=0
 #SBATCH --time=03:00:00
-#SBATCH --array=0-11
+#SBATCH --array=0-15
 set -euo pipefail
 
 # ============================================
@@ -49,7 +49,7 @@ attack_config="configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp
 attack_separator_abbrv=sp
 
 # Inter-job sweep
-DEFENCE_UP_COEFFS=(0.1 1.0 5.0) # Utility preservation weight (default: 1.0)
+DEFENCE_UP_COEFFS=(0.01 0.1 1.0 5.0) # Utility preservation weight (default: 1.0)
 DEFENCE_SD_COEFFS=(0.01 0.1 1.0 5.0) # Self-destruct loss (default: 0.01)
 
 # Intra-job sweep
