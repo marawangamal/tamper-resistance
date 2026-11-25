@@ -21,6 +21,7 @@ export TOKENIZERS_PARALLELISM=false
 project_dir="$PWD"
 ctrap_dir="$project_dir/ctrap"
 ctrap_env="$SLURM_TMPDIR/.venv-ctrap-$SLURM_JOB_ID"
+model_cache="$HF_HOME/hub"
 artifact_root=${CTRAP_ARTIFACT_ROOT:-"$SCRATCH/tamper-resistance/artifacts/mila"}
 base_model="meta-llama/Llama-2-7b-hf"
 ctrap_alpha=0.1
@@ -75,7 +76,7 @@ mkdir -p "$eval_dir"
         --lr_scheduler_type constant \
         --logging_steps 1 \
         --tf32 True \
-        --cache_dir "$HF_HOME" \
+        --cache_dir "$model_cache" \
         --optimizer ctrap \
         --sample_num 5000 \
         --bad_sample_num 5000 \
@@ -96,9 +97,9 @@ fi
         --model_folder "$base_model" \
         --lora_folder "$model_path" \
         --output_path "$eval_dir/generations.json" \
-        --cache_dir "$HF_HOME"
+        --cache_dir "$model_cache"
     "$ctrap_env/bin/python" eval_sentiment.py \
         --input_path "$eval_dir/generations.json" \
-        --cache_dir "$HF_HOME"
+        --cache_dir "$model_cache"
 )
 touch "$eval_dir/defence-complete"
