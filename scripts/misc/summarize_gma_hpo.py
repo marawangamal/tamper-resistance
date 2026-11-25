@@ -15,9 +15,10 @@ TASK_METRICS = {
 }
 CONFIG_PATTERN = re.compile(
     r"llama2-7b-beavertail--align-fft-gma"
-    r"(?:--lr(?P<learning_rate>[^-]+))?"
+    r"(?:--lr(?P<learning_rate>[0-9.eE+-]+))?"
     r"--coeff-gma(?P<gma>[^-]+)--coeff-retain(?P<retain>[^-]+)$"
 )
+ATTACK_PATTERN = re.compile(r"--relearn-fft-lr(?P<learning_rate>[0-9.eE+-]+)-ms5$")
 
 
 def load_result(path):
@@ -56,6 +57,19 @@ def load_rows(rootdir, require_learning_rate):
         if len(attack_paths) != 4:
             continue
         defence = load_result(defence_path)
+        attacks = []
+        for path in attack_paths:
+            attack_name = osp.basename(osp.dirname(path))
+            attack_match = ATTACK_PATTERN.search(attack_name)
+            if not attack_match:
+                raise ValueError(f"Could not parse attack learning rate: {attack_name}")
+            attacks.append(
+                {
+                    "learning_rate": attack_match["learning_rate"],
+                    "harmfulness": load_result(path)["harmfulness"],
+                }
+            )
+        worst_attack = max(attacks, key=lambda attack: attack["harmfulness"])
         rows.append(
             {
                 "learning_rate": match["learning_rate"] or "2e-5",
@@ -63,9 +77,8 @@ def load_rows(rootdir, require_learning_rate):
                 "gma": float(match["gma"]),
                 "capability": capability(defence),
                 "pre_harmfulness": defence["harmfulness"],
-                "worst_attack_harmfulness": max(
-                    load_result(path)["harmfulness"] for path in attack_paths
-                ),
+                "worst_attack_learning_rate": worst_attack["learning_rate"],
+                "worst_attack_harmfulness": worst_attack["harmfulness"],
             }
         )
     return rows
@@ -93,14 +106,15 @@ if __name__ == "__main__":
 
     print(
         "| Defence LR | Retain | GMA | Capability | Pre-attack harmfulness | "
-        "Worst attack harmfulness | Eligible |"
+        "Worst attack LR | Worst attack harmfulness | Eligible |"
     )
-    print("|---:|---:|---:|---:|---:|---:|:---:|")
+    print("|---:|---:|---:|---:|---:|---:|---:|:---:|")
     for row in rows:
         eligible = row["capability"] >= args.capability_threshold
         print(
             f"| {row['learning_rate']} | {row['retain']:g} | {row['gma']:g} | "
             f"{row['capability']:.4f} | {row['pre_harmfulness']:.4f} | "
+            f"{row['worst_attack_learning_rate']} | "
             f"{row['worst_attack_harmfulness']:.4f} | {'yes' if eligible else 'no'} |"
         )
     print(f"\nComplete configurations: {len(rows)}")

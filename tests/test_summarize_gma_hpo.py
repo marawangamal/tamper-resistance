@@ -1,0 +1,23 @@
+import runpy
+
+
+MODULE = runpy.run_path("scripts/misc/summarize_gma_hpo.py", run_name="gma_summary")
+ATTACK_PATTERN = MODULE["ATTACK_PATTERN"]
+CONFIG_PATTERN = MODULE["CONFIG_PATTERN"]
+
+
+def test_parses_scientific_notation_learning_rates():
+    defence = CONFIG_PATTERN.fullmatch(
+        "llama2-7b-beavertail--align-fft-gma"
+        "--lr5e-7--coeff-gma1.0--coeff-retain2.0"
+    )
+    attack = ATTACK_PATTERN.search(
+        "llama2-7b-beavertail--align-fft-gma"
+        "--lr5e-7--coeff-gma1.0--coeff-retain2.0"
+        "--relearn-fft-lr2e-4-ms5"
+    )
+
+    assert defence is not None
+    assert defence["learning_rate"] == "5e-7"
+    assert attack is not None
+    assert attack["learning_rate"] == "2e-4"
