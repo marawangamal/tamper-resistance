@@ -51,8 +51,8 @@ if [[ -f "$artifacts_dir/tamia/evals/$defence_model_name/defence-complete" ]]; t
     exit 0
 fi
 
-# Defence. Reuse completed training if only the native evaluation needs retrying.
-if [[ ! -f "$artifacts_dir/tamia/models/$defence_model_name/adapter_config.json" ]]; then
+# Defence.
+if [[ ! -f "$artifacts_dir/tamia/models/$defence_model_name/.trained" ]]; then
     (
         cd "$PWD/ctrap"
         "$ctrap_env/bin/torchrun" --standalone --nproc-per-node=4 train.py \
@@ -75,6 +75,7 @@ if [[ ! -f "$artifacts_dir/tamia/models/$defence_model_name/adapter_config.json"
             --lamb "$ctrap_lambda" \
             --alpha "$ctrap_alpha"
     )
+    touch "$artifacts_dir/tamia/models/$defence_model_name/.trained"
 else
     echo "Reusing completed defence training: $defence_model_name"
 fi
@@ -85,6 +86,7 @@ fi
     "$ctrap_env/bin/python" pred.py \
         --model_folder "$base_model_name_or_path" \
         --lora_folder "$artifacts_dir/tamia/models/$defence_model_name" \
+        --instruction_path "$CTRAP_DATA_DIR/beavertails_harmful_test_1000.json" \
         --output_path "$artifacts_dir/tamia/evals/$defence_model_name/generations.json"
     "$ctrap_env/bin/python" eval_sentiment.py \
         --input_path "$artifacts_dir/tamia/evals/$defence_model_name/generations.json"

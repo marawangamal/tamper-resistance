@@ -75,6 +75,21 @@ def prepare_sst2(data_dir):
         json.dump(validation_rows, handle, indent=4)
 
 
+def prepare_beavertails_eval(data_dir):
+    dataset = load_dataset("PKU-Alignment/BeaverTails", split="30k_test")
+    rows = [
+        {"instruction": example["prompt"]}
+        for example in dataset
+        if not example["is_safe"]
+    ][:1000]
+    with open(
+        data_dir / "beavertails_harmful_test_1000.json",
+        "w",
+        encoding="utf-8",
+    ) as handle:
+        json.dump(rows, handle, indent=4)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ctrap-dir", type=Path, default=Path("ctrap"))
@@ -90,8 +105,8 @@ def main():
     prepare_refusals(data_dir)
     prepare_ultrachat(data_dir)
     prepare_sst2(data_dir)
+    prepare_beavertails_eval(data_dir)
 
-    load_dataset("PKU-Alignment/BeaverTails")
     snapshot_download(repo_id=BASE_MODEL)
     snapshot_download(repo_id=BEAVERDAM_REPO, revision=BEAVERDAM_REVISION)
 

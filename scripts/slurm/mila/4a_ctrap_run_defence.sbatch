@@ -17,10 +17,6 @@ export HF_HOME="$SCRATCH/.cache/huggingface"
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export UV_OFFLINE=1
 export UV_LINK_MODE=copy
-export HF_HUB_OFFLINE=1
-export HF_DATASETS_OFFLINE=1
-export HF_EVALUATE_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
 export TOKENIZERS_PARALLELISM=false
 export WANDB_MODE=disabled
 
@@ -50,28 +46,33 @@ if [[ -f "$artifacts_dir/mila/evals/$defence_model_name/defence-complete" ]]; th
 fi
 
 # Defence.
-(
-    cd "$PWD/ctrap"
-    "$ctrap_env/bin/python" train.py \
-        --model_name_or_path "$base_model_name_or_path" \
-        --data_path PKU-Alignment/BeaverTails_safe_alignment \
-        --bf16 True \
-        --output_dir "$artifacts_dir/mila/models/$defence_model_name" \
-        --num_train_epochs 20 \
-        --per_device_train_batch_size 10 \
-        --save_steps 100000 \
-        --learning_rate 5e-4 \
-        --weight_decay 0.1 \
-        --lr_scheduler_type constant \
-        --logging_steps 1 \
-        --tf32 True \
-        --optimizer ctrap \
-        --sample_num 5000 \
-        --bad_sample_num 5000 \
-        --benign_dataset "$CTRAP_DATA_DIR/sst2.json" \
-        --lamb "$ctrap_lambda" \
-        --alpha "$ctrap_alpha"
-)
+if [[ ! -f "$artifacts_dir/mila/models/$defence_model_name/.trained" ]]; then
+    (
+        cd "$PWD/ctrap"
+        "$ctrap_env/bin/python" train.py \
+            --model_name_or_path "$base_model_name_or_path" \
+            --data_path PKU-Alignment/BeaverTails_safe_alignment \
+            --bf16 True \
+            --output_dir "$artifacts_dir/mila/models/$defence_model_name" \
+            --num_train_epochs 20 \
+            --per_device_train_batch_size 10 \
+            --save_steps 100000 \
+            --learning_rate 5e-4 \
+            --weight_decay 0.1 \
+            --lr_scheduler_type constant \
+            --logging_steps 1 \
+            --tf32 True \
+            --optimizer ctrap \
+            --sample_num 5000 \
+            --bad_sample_num 5000 \
+            --benign_dataset "$CTRAP_DATA_DIR/sst2.json" \
+            --lamb "$ctrap_lambda" \
+            --alpha "$ctrap_alpha"
+    )
+    touch "$artifacts_dir/mila/models/$defence_model_name/.trained"
+else
+    echo "Reusing completed defence training: $defence_model_name"
+fi
 
 # Native defence evaluation.
 (
