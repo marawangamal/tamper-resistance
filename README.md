@@ -41,4 +41,13 @@ defence_job=$(sbatch --parsable \
   scripts/slurm/mila/4a_ctrap_run_defence.sbatch)
 sbatch --dependency="afterok:$defence_job" \
   scripts/slurm/mila/4b_ctrap_run_attack_eval.sbatch
+
+# [CTRAP/Tamia] Smoke-test the four-H100 distributed defence
+sbatch scripts/slurm/tamia/misc/smoke_ctrap_defence.sbatch
+
+# [CTRAP/Tamia] Run the distributed defence, then the raw/CTRAP attack matrix
+defence_job=$(sbatch --parsable \
+  scripts/slurm/tamia/4a_ctrap_run_defence.sbatch)
+sbatch --dependency="afterok:$defence_job" \
+  scripts/slurm/tamia/4b_ctrap_run_attack_eval.sbatch
 ```
