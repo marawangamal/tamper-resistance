@@ -162,6 +162,8 @@ ineligible.
 The completed sweep results are stored under `artifacts/tamia/evals/` in the
 `llama2-7b-beavertail--align-fft-gma--*` directories.
 
+<img src="../artifacts/figures-png/gma-hpo-pareto.png" alt="GMA HPO capability versus worst-case five-step attack harmfulness" width="75%">
+
 ### RepNoise
 
 | HP | Space | Selected |
