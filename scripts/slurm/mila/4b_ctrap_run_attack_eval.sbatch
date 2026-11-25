@@ -15,7 +15,7 @@ set -euo pipefail
 export PATH="$HOME/.local/bin:$PATH"
 export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
 export HF_HOME="$SCRATCH/.cache/huggingface"
-export UV_CACHE_DIR="$SCRATCH/.cache/uv-ctrap"
+export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export UV_OFFLINE=1
 export UV_LINK_MODE=copy
 export HF_HUB_OFFLINE=1
@@ -30,71 +30,61 @@ export WANDB_MODE=disabled
 # ============================================
 
 # Setup
-project_dir="$PWD"
-ctrap_dir="$project_dir/ctrap"
-ctrap_env="$SLURM_TMPDIR/.venv-ctrap-$SLURM_JOB_ID"
-artifact_root=${CTRAP_ARTIFACT_ROOT:-"$SCRATCH/tamper-resistance/artifacts/mila"}
 export CTRAP_DATA_DIR="$SCRATCH/tamper-resistance/data/ctrap"
+ctrap_env="$SLURM_TMPDIR/.venv-ctrap-$SLURM_JOB_ID"
+artifacts_dir="$SCRATCH/tamper-resistance/artifacts"
+mkdir -p "$artifacts_dir/mila/models" "$artifacts_dir/mila/evals"
 UV_PROJECT_ENVIRONMENT="$ctrap_env" uv sync --project ctrap --frozen
-mkdir -p "$artifact_root/logs" "$artifact_root/models" "$artifact_root/evals"
 
 # Inputs
-base_model="meta-llama/Llama-2-7b-hf"
-ctrap_alpha=0.1
-ctrap_lambda=0.1
-defence_name="llama2-7b--align-lora-ctrap-a$ctrap_alpha-l$ctrap_lambda"
-defence_path="$artifact_root/models/$defence_name"
+base_model_name_or_path="meta-llama/Llama-2-7b-hf"
+poison_ratio=1
 
-# Inter-job sweep
+# Inter-job sweep (2 methods x 5 sample counts = 10 tasks)
+methods=(raw ctrap)
+method_model_names=(
+    "llama2-7b--raw"
+    "llama2-7b--align-lora-ctrap-a0.1-l0.1"
+)
 sample_counts=(100 200 300 400 500)
 
 # Set attack model name.
 index=${SLURM_ARRAY_TASK_ID:?submit with sbatch}
-if (( index < 5 )); then
-    method=raw
-    sample_count=${sample_counts[index]}
-    attack_name="llama2-7b--raw--attack-lora-full-harmful-n$sample_count"
-    lora_args=()
-else
-    method=ctrap
-    sample_count=${sample_counts[index - 5]}
-    attack_name="$defence_name--attack-lora-full-harmful-n$sample_count"
-    lora_args=(--lora_folder "$defence_path")
-    if [[ ! -f "$artifact_root/evals/$defence_name/defence-complete" ]]; then
-        echo "Missing completed CTRAP defence: $defence_path" >&2
-        exit 1
-    fi
-fi
+method_index=$((index / ${#sample_counts[@]}))
+method=${methods[method_index]}
+method_model_name=${method_model_names[method_index]}
+sample_count=${sample_counts[index % ${#sample_counts[@]}]}
 
-attack_path="$artifact_root/models/$attack_name"
-eval_dir="$artifact_root/evals/$attack_name"
+attack_model_name="$method_model_name--attack-lora-pr$poison_ratio-n$sample_count"
 
 # Resumption handling.
-if [[ -f "$eval_dir/results.json" ]]; then
-    echo "Skipping completed attack: $attack_name"
+if [[ -f "$artifacts_dir/mila/evals/$attack_model_name/results.json" ]]; then
+    echo "Skipping completed attack: $attack_model_name"
     exit 0
 fi
 
-# Restart this attack from scratch.
-rm -rf -- "$attack_path" "$eval_dir"
-mkdir -p "$eval_dir"
+lora_args=()
+if [[ "$method" == ctrap ]]; then
+    if [[ ! -f "$artifacts_dir/mila/evals/$method_model_name/defence-complete" ]]; then
+        echo "Missing completed CTRAP defence: $method_model_name" >&2
+        exit 1
+    fi
+    lora_args=(--lora_folder "$artifacts_dir/mila/models/$method_model_name")
+fi
 
 # Attack.
 (
-    cd "$ctrap_dir"
+    cd "$PWD/ctrap"
     "$ctrap_env/bin/python" train.py \
-        --model_name_or_path "$base_model" \
+        --model_name_or_path "$base_model_name_or_path" \
         "${lora_args[@]}" \
         --data_path PKU-Alignment/BeaverTails_dangerous \
         --bf16 True \
-        --output_dir "$attack_path" \
+        --output_dir "$artifacts_dir/mila/models/$attack_model_name" \
         --num_train_epochs 20 \
         --per_device_train_batch_size 10 \
         --per_device_eval_batch_size 10 \
-        --gradient_accumulation_steps 1 \
-        --save_strategy steps \
         --save_steps 100000 \
-        --save_total_limit 0 \
         --learning_rate 1e-5 \
         --weight_decay 0.1 \
         --warmup_ratio 0.1 \
@@ -105,41 +95,39 @@ mkdir -p "$eval_dir"
         --optimizer normal \
         --evaluation_strategy steps \
         --sample_num "$sample_count" \
-        --poison_ratio 1 \
-        --label_smoothing_factor 0 \
+        --poison_ratio "$poison_ratio" \
         --benign_dataset "$CTRAP_DATA_DIR/sst2.json" \
-        --lamb "$ctrap_lambda" \
+        --lamb 0.1 \
         --alternating single_lora
 )
 
 # Native harmfulness evaluation.
 (
-    cd "$ctrap_dir/poison/evaluation"
+    cd "$PWD/ctrap/poison/evaluation"
     "$ctrap_env/bin/python" pred.py \
-        --model_folder "$base_model" \
-        --lora_folder "$attack_path" \
-        --output_path "$eval_dir/generations.json"
+        --model_folder "$base_model_name_or_path" \
+        --lora_folder "$artifacts_dir/mila/models/$attack_model_name" \
+        --output_path "$artifacts_dir/mila/evals/$attack_model_name/generations.json"
     "$ctrap_env/bin/python" eval_sentiment.py \
-        --input_path "$eval_dir/generations.json"
+        --input_path "$artifacts_dir/mila/evals/$attack_model_name/generations.json"
 )
 
 # Native SST-2 evaluation.
 (
-    cd "$ctrap_dir/sst2"
+    cd "$PWD/ctrap/sst2"
     "$ctrap_env/bin/python" pred_eval.py \
-        --model_folder "$base_model" \
-        --lora_folder "$attack_path" \
-        --output_path "$eval_dir/sst2.json" \
+        --model_folder "$base_model_name_or_path" \
+        --lora_folder "$artifacts_dir/mila/models/$attack_model_name" \
+        --output_path "$artifacts_dir/mila/evals/$attack_model_name/sst2.json" \
         --dataset_path "$CTRAP_DATA_DIR/sst2_validation.json"
 )
 
 # Save structured metrics alongside the native outputs.
-ctrap_revision=$(git -C "$ctrap_dir" rev-parse HEAD)
 "$ctrap_env/bin/python" scripts/misc/parse_ctrap_results.py \
     --method "$method" \
     --sample-count "$sample_count" \
-    --sentiment-eval "$eval_dir/generations.json_sentiment_eval.json" \
-    --sst2-eval "$eval_dir/sst2.json" \
-    --output "$eval_dir/results.json" \
-    --model "$base_model" \
-    --ctrap-revision "$ctrap_revision"
+    --sentiment-eval "$artifacts_dir/mila/evals/$attack_model_name/generations.json_sentiment_eval.json" \
+    --sst2-eval "$artifacts_dir/mila/evals/$attack_model_name/sst2.json" \
+    --output "$artifacts_dir/mila/evals/$attack_model_name/results.json" \
+    --model "$base_model_name_or_path" \
+    --ctrap-revision "$(git -C "$PWD/ctrap" rev-parse HEAD)"

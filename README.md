@@ -34,8 +34,7 @@ HF_HOME="$SCRATCH/.cache/huggingface" \
     --data-dir "$SCRATCH/tamper-resistance/data/ctrap"
 
 # [CTRAP] Verify the authors' defence fits one Mila L40S
-sbatch --time=00:30:00 --export=ALL,CTRAP_MAX_STEPS=1 \
-  scripts/slurm/mila/4a_ctrap_run_defence.sbatch
+sbatch scripts/slurm/mila/misc/smoke_ctrap_defence.sbatch
 
 # [CTRAP] Run the full paper-default defence, then the raw/CTRAP attack matrix
 defence_job=$(sbatch --parsable \
