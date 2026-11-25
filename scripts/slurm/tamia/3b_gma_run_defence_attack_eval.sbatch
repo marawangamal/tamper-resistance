@@ -60,6 +60,14 @@ defence_gma_coeff=${DEFENCE_GMA_COEFFS[index % ${#DEFENCE_GMA_COEFFS[@]}]}
 # Set defence model name
 defence_model_name="llama2-7b-beavertail--align-fft-gma--coeff-gma$defence_gma_coeff--coeff-retain$defence_retain_coeff"
 defence_model_path="artifacts/tamia/models/$defence_model_name"
+resolved_defence_config="$SLURM_TMPDIR/gma-defence-$SLURM_JOB_ID.yml"
+
+"$defence_env/bin/python" scripts/misc/render_gma_config.py \
+    "$defence_config" "$resolved_defence_config" \
+    --output-dir "$defence_model_path" \
+    --wandb-name "$defence_model_name" \
+    --coeff-retain "$defence_retain_coeff" \
+    --coeff-gma "$defence_gma_coeff"
 
 # ================================================================================
 # Resumption handling. Skip iff every attack config for this defence exists
@@ -95,13 +103,8 @@ done
 
 # Defence.
 export CUDA_VISIBLE_DEVICES=0,1,2,3
-PYTHONHASHSEED=0 "$defence_env/bin/axolotl" train "$defence_config" --launcher python \
-    --trainer_cls trainers.tr_gma.GMAGDTrainer \
-    --output_dir "$defence_model_path" \
-    --wandb_name "$defence_model_name" \
-    --custom_trainer_args__coeff_retain "$defence_retain_coeff" \
-    --custom_trainer_args__coeff_gma "$defence_gma_coeff" \
-    --save_total_limit 1
+PYTHONHASHSEED=0 "$defence_env/bin/axolotl" train \
+    "$resolved_defence_config" --launcher python
 
 # Prepare the shared attack dataset before starting parallel attacks.
 "$attack_env/bin/axolotl" preprocess "$attack_config" \
@@ -124,7 +127,8 @@ for max_steps in "${attack_max_steps[@]}"; do
                 --base-model "$defence_model_path" \
                 --output-dir "artifacts/tamia/models/$attack_model_name" \
                 --learning-rate "$attack_lr" \
-                --max-steps "$max_steps"
+                --max-steps "$max_steps" \
+                --wandb-name "$attack_model_name"
             "$attack_env/bin/python" -m src.evals.evaluation \
                 --model "artifacts/tamia/models/$attack_model_name" \
                 --results-path "artifacts/tamia/evals/$attack_model_name/results.json"
