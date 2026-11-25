@@ -18,10 +18,6 @@ export HF_HOME="$SCRATCH/.cache/huggingface"
 export UV_CACHE_DIR="$SCRATCH/.cache/uv"
 export UV_OFFLINE=1
 export UV_LINK_MODE=copy
-export HF_HUB_OFFLINE=1
-export HF_DATASETS_OFFLINE=1
-export HF_EVALUATE_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
 export TOKENIZERS_PARALLELISM=false
 export WANDB_MODE=disabled
 
