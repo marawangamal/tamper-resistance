@@ -39,7 +39,7 @@ attack_env="$SLURM_TMPDIR/.venv-attack-$SLURM_JOB_ID"
 UV_PROJECT_ENVIRONMENT="$defence_env" uv sync --frozen
 UV_PROJECT_ENVIRONMENT="$attack_env" uv sync --frozen
 export WANDB_DIR="$PWD/artifacts/tamia"
-mkdir -p "$WANDB_DIR" artifacts/tamia/logs
+mkdir -p "$WANDB_DIR" artifacts/tamia/logs "$SLURM_TMPDIR/models"
 
 # Inputs (both configs use response_separator: space).
 defence_config=${1:-configs/beavertails/stages/0_align/llama2-7b--align-fft-gma.yml}
@@ -59,7 +59,7 @@ defence_gma_coeff=${DEFENCE_GMA_COEFFS[index % ${#DEFENCE_GMA_COEFFS[@]}]}
 
 # Set defence model name
 defence_model_name="llama2-7b-beavertail--align-fft-gma--coeff-gma$defence_gma_coeff--coeff-retain$defence_retain_coeff"
-defence_model_path="artifacts/tamia/models/$defence_model_name"
+defence_model_path="$SLURM_TMPDIR/models/$defence_model_name"
 resolved_defence_config="$SLURM_TMPDIR/gma-defence-$SLURM_JOB_ID.yml"
 
 "$defence_env/bin/python" scripts/misc/render_gma_config.py \
@@ -90,12 +90,11 @@ if "$skip_defence"; then
 fi
 
 # Restart this defence and all its attacks from scratch.
-rm -rf -- "artifacts/tamia/models/$defence_model_name" \
-    "artifacts/tamia/evals/$defence_model_name"
+rm -rf -- "$defence_model_path" "artifacts/tamia/evals/$defence_model_name"
 for max_steps in "${attack_max_steps[@]}"; do
     for attack_lr in "${attack_learning_rates[@]}"; do
         attack_model_name="$defence_model_name--relearn-fft-lr$attack_lr-ms$max_steps"
-        rm -rf -- "artifacts/tamia/models/$attack_model_name" \
+        rm -rf -- "$SLURM_TMPDIR/models/$attack_model_name" \
             "artifacts/tamia/evals/$attack_model_name"
     done
 done
@@ -121,18 +120,19 @@ for max_steps in "${attack_max_steps[@]}"; do
     for gpu in 0 1 2 3; do
         attack_lr=${attack_learning_rates[gpu]}
         attack_model_name="$defence_model_name--relearn-fft-lr$attack_lr-ms$max_steps"
+        attack_model_path="$SLURM_TMPDIR/models/$attack_model_name"
         (
             export CUDA_VISIBLE_DEVICES=$gpu
             "$attack_env/bin/axolotl" train "$attack_config" --launcher python \
                 --base-model "$defence_model_path" \
-                --output-dir "artifacts/tamia/models/$attack_model_name" \
+                --output-dir "$attack_model_path" \
                 --learning-rate "$attack_lr" \
                 --max-steps "$max_steps" \
                 --wandb-name "$attack_model_name"
             "$attack_env/bin/python" -m src.evals.evaluation \
-                --model "artifacts/tamia/models/$attack_model_name" \
+                --model "$attack_model_path" \
                 --results-path "artifacts/tamia/evals/$attack_model_name/results.json"
-            rm -rf -- "artifacts/tamia/models/$attack_model_name"
+            rm -rf -- "$attack_model_path"
         ) >> "artifacts/tamia/logs/$attack_model_name.log" 2>&1 &
         pids+=("$!")
     done
@@ -147,4 +147,4 @@ for max_steps in "${attack_max_steps[@]}"; do
 done
 
 # Delete model artifacts only after evaluation succeeds.
-rm -rf -- "artifacts/tamia/models/$defence_model_name"
+rm -rf -- "$defence_model_path"
