@@ -51,29 +51,33 @@ if [[ -f "$artifacts_dir/tamia/evals/$defence_model_name/defence-complete" ]]; t
     exit 0
 fi
 
-# Defence.
-(
-    cd "$PWD/ctrap"
-    "$ctrap_env/bin/torchrun" --standalone --nproc-per-node=4 train.py \
-        --model_name_or_path "$base_model_name_or_path" \
-        --data_path PKU-Alignment/BeaverTails_safe_alignment \
-        --bf16 True \
-        --output_dir "$artifacts_dir/tamia/models/$defence_model_name" \
-        --num_train_epochs 20 \
-        --per_device_train_batch_size 10 \
-        --save_steps 100000 \
-        --learning_rate 5e-4 \
-        --weight_decay 0.1 \
-        --lr_scheduler_type constant \
-        --logging_steps 1 \
-        --tf32 True \
-        --optimizer ctrap \
-        --sample_num 5000 \
-        --bad_sample_num 5000 \
-        --benign_dataset "$CTRAP_DATA_DIR/sst2.json" \
-        --lamb "$ctrap_lambda" \
-        --alpha "$ctrap_alpha"
-)
+# Defence. Reuse completed training if only the native evaluation needs retrying.
+if [[ ! -f "$artifacts_dir/tamia/models/$defence_model_name/adapter_config.json" ]]; then
+    (
+        cd "$PWD/ctrap"
+        "$ctrap_env/bin/torchrun" --standalone --nproc-per-node=4 train.py \
+            --model_name_or_path "$base_model_name_or_path" \
+            --data_path PKU-Alignment/BeaverTails_safe_alignment \
+            --bf16 True \
+            --output_dir "$artifacts_dir/tamia/models/$defence_model_name" \
+            --num_train_epochs 20 \
+            --per_device_train_batch_size 10 \
+            --save_steps 100000 \
+            --learning_rate 5e-4 \
+            --weight_decay 0.1 \
+            --lr_scheduler_type constant \
+            --logging_steps 1 \
+            --tf32 True \
+            --optimizer ctrap \
+            --sample_num 5000 \
+            --bad_sample_num 5000 \
+            --benign_dataset "$CTRAP_DATA_DIR/sst2.json" \
+            --lamb "$ctrap_lambda" \
+            --alpha "$ctrap_alpha"
+    )
+else
+    echo "Reusing completed defence training: $defence_model_name"
+fi
 
 # Native defence evaluation.
 (
