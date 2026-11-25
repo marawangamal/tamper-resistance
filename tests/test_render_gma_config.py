@@ -16,6 +16,7 @@ def test_renders_per_task_gma_values(tmp_path):
                 },
                 "output_dir": "old-output",
                 "wandb_name": "old-name",
+                "learning_rate": 2e-5,
             }
         )
     )
@@ -34,6 +35,8 @@ def test_renders_per_task_gma_values(tmp_path):
             "0.01",
             "--coeff-gma",
             "5.0",
+            "--learning-rate",
+            "1e-6",
         ],
         check=True,
     )
@@ -43,3 +46,4 @@ def test_renders_per_task_gma_values(tmp_path):
     assert config["wandb_name"] == "new-name"
     assert config["custom_trainer_args"]["coeff_retain"] == 0.01
     assert config["custom_trainer_args"]["coeff_gma"] == 5.0
+    assert config["learning_rate"] == 1e-6

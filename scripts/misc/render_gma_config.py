@@ -14,6 +14,7 @@ def main():
     parser.add_argument("--wandb-name", required=True)
     parser.add_argument("--coeff-retain", type=float, required=True)
     parser.add_argument("--coeff-gma", type=float, required=True)
+    parser.add_argument("--learning-rate", type=float)
     args = parser.parse_args()
 
     config = yaml.safe_load(args.config.read_text())
@@ -22,6 +23,8 @@ def main():
     custom_args["coeff_gma"] = args.coeff_gma
     config["output_dir"] = args.output_dir
     config["wandb_name"] = args.wandb_name
+    if args.learning_rate is not None:
+        config["learning_rate"] = args.learning_rate
 
     args.output.write_text(yaml.safe_dump(config, sort_keys=False))
 
