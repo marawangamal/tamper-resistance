@@ -68,6 +68,7 @@ fi
         --optimizer ctrap \
         --sample_num 5000 \
         --bad_sample_num 5000 \
+        --benign_dataset "$CTRAP_DATA_DIR/sst2.json" \
         --lamb "$ctrap_lambda" \
         --alpha "$ctrap_alpha"
 )
