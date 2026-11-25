@@ -8,26 +8,42 @@
 #SBATCH --time=1-00:00:00
 set -euo pipefail
 
+# ============================================
+# CLUSTER SPECIFIC CONFIG
+# ============================================
 export PATH="$HOME/.local/bin:$PATH"
+export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
 export HF_HOME="$SCRATCH/.cache/huggingface"
 export UV_CACHE_DIR="$SCRATCH/.cache/uv-ctrap"
-export CTRAP_DATA_DIR="$SCRATCH/tamper-resistance/data/ctrap"
+export UV_OFFLINE=1
 export UV_LINK_MODE=copy
 export HF_HUB_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
+export HF_EVALUATE_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export TOKENIZERS_PARALLELISM=false
+export WANDB_MODE=disabled
 
+# ============================================
+# APPLICATION SPECIFIC CONFIG
+# ============================================
+
+# Setup
 project_dir="$PWD"
 ctrap_dir="$project_dir/ctrap"
 ctrap_env="$SLURM_TMPDIR/.venv-ctrap-$SLURM_JOB_ID"
-model_cache="$HF_HOME/hub"
 artifact_root=${CTRAP_ARTIFACT_ROOT:-"$SCRATCH/tamper-resistance/artifacts/mila"}
+export CTRAP_DATA_DIR="$SCRATCH/tamper-resistance/data/ctrap"
+UV_PROJECT_ENVIRONMENT="$ctrap_env" uv sync --project ctrap --frozen
+mkdir -p "$artifact_root/logs" "$artifact_root/models" "$artifact_root/evals"
+
+# Inputs
 base_model="meta-llama/Llama-2-7b-hf"
 ctrap_alpha=0.1
 ctrap_lambda=0.1
 max_steps=${CTRAP_MAX_STEPS:--1}
 
+# Set defence model name.
 if (( max_steps > 0 )); then
     run_suffix="--smoke-ms$max_steps"
 else
@@ -37,10 +53,7 @@ model_name="llama2-7b--align-lora-ctrap-a$ctrap_alpha-l$ctrap_lambda$run_suffix"
 model_path="$artifact_root/models/$model_name"
 eval_dir="$artifact_root/evals/$model_name"
 
-mkdir -p "$artifact_root/logs" "$artifact_root/models" "$artifact_root/evals"
-UV_PROJECT_ENVIRONMENT="$ctrap_env" uv sync \
-    --project "$ctrap_dir" --offline --frozen
-
+# Record GPU memory during the smoke and full run.
 monitor_log="$artifact_root/logs/$model_name-memory.csv"
 (
     while true; do
@@ -52,9 +65,11 @@ monitor_log="$artifact_root/logs/$model_name-memory.csv"
 monitor_pid=$!
 trap 'kill "$monitor_pid" 2>/dev/null || true' EXIT
 
+# Restart the defence from scratch.
 rm -rf -- "$model_path" "$eval_dir"
 mkdir -p "$eval_dir"
 
+# Defence.
 (
     cd "$ctrap_dir"
     "$ctrap_env/bin/python" train.py \
@@ -76,7 +91,6 @@ mkdir -p "$eval_dir"
         --lr_scheduler_type constant \
         --logging_steps 1 \
         --tf32 True \
-        --cache_dir "$model_cache" \
         --optimizer ctrap \
         --sample_num 5000 \
         --bad_sample_num 5000 \
@@ -91,15 +105,14 @@ if (( max_steps > 0 )); then
     exit 0
 fi
 
+# Native defence evaluation.
 (
     cd "$ctrap_dir/poison/evaluation"
     "$ctrap_env/bin/python" pred.py \
         --model_folder "$base_model" \
         --lora_folder "$model_path" \
-        --output_path "$eval_dir/generations.json" \
-        --cache_dir "$model_cache"
+        --output_path "$eval_dir/generations.json"
     "$ctrap_env/bin/python" eval_sentiment.py \
-        --input_path "$eval_dir/generations.json" \
-        --cache_dir "$model_cache"
+        --input_path "$eval_dir/generations.json"
 )
 touch "$eval_dir/defence-complete"
