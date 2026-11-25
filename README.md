@@ -27,4 +27,13 @@ sbatch scripts/slurm/tamia/2b_seam_run_defence_attack_eval.sbatch
 # the previous command.
 sbatch scripts/slurm/tamia/2c_seam_run_defence_attack_eval_cosim.sbatch \
   configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp.yml space
+
+# [SDD] After caching mremila/sdd-beavertails-alpaca on the Tamia login node,
+# run SFT, the pre-attack evaluation, and the SEAM-matched attack sweep.
+sbatch scripts/slurm/tamia/5a_sdd_run_defence_attack_eval.sbatch
 ```
+
+Tamia compute nodes run offline. Before submitting SDD, load the dataset once on
+the login node with `HF_HOME=$SCRATCH/.cache/huggingface` and the project's Python
+environment. The base model, attack dataset, evaluation models, evaluation
+datasets, and uv packages must also be available in their shared caches.
