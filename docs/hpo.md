@@ -145,6 +145,23 @@ All runs use sp/sp formatting.
 The selected configuration has pre-attack capability 0.5750 and worst-case
 five-step attack harmfulness 0.3604. The base capability reference is 0.5527.
 
+### GMA
+
+| HP | Space | Selected |
+|---|---|---|
+| Retain coefficient | 0.01, 0.1, 1.0, 5.0 | None |
+| GMA coefficient | 0.01, 0.1, 1.0, 5.0 | None |
+
+No GMA configuration satisfies the capability constraint. The minimum allowed
+pre-attack capability is 0.5027, while the highest observed capability is
+0.3845 (retain 5.0, GMA 0.01), whose worst-case five-step attack harmfulness is
+0.7703. The lowest worst-case attack harmfulness is 0.0044 (retain 0.01, GMA
+1.0), but that configuration has pre-attack capability 0.2777 and is therefore
+ineligible.
+
+The completed sweep results are stored under `artifacts/tamia/evals/` in the
+`llama2-7b-beavertail--align-fft-gma--*` directories.
+
 ### RepNoise
 
 | HP | Space | Selected |
