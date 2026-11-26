@@ -38,7 +38,7 @@ learning_rate: 5.0e-05
 optimizer: adamw_torch
 adam_beta1: 0.0
 adam_beta2: 0.0
-weight_decay: 0.0
+weight_decay: 0.01
 lr_scheduler: cosine
 max_grad_norm: 0.0
 bf16: true

@@ -36,7 +36,7 @@ export WANDB_DIR="$PWD/artifacts/tamia"
 mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
 # Match the existing SP defence, varying only the self-destruct coefficient.
-defence_config=$(realpath -- configs/beavertails/seam/train-paper.yaml)
+defence_config=$(realpath -- configs/beavertails/seam/train-paper.yml)
 defence_separator=' '
 defence_up_coeff=1.0
 defence_sd_coeffs=(0.1 0.5 1.0)
