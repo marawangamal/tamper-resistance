@@ -61,8 +61,32 @@ for shots in (10, 50, 100):
 PY
 
 for shots in 10 50 100; do
+    if [[ "${SDD_QI_SMOKE:-0}" == 1 && "$shots" != 10 ]]; then
+        continue
+    fi
     "$train_env/bin/axolotl" preprocess "$SLURM_TMPDIR/sdd-qi-advbench-$shots.yml"
 done
+
+if [[ "${SDD_QI_SMOKE:-0}" == 1 ]]; then
+    smoke_config="$SLURM_TMPDIR/sdd-qi-advbench-smoke.yml"
+    smoke_output="$SCRATCH/tamper-resistance/models/sdd-qi-advbench-smoke-$SLURM_JOB_ID"
+    "$train_env/bin/python" - "$SLURM_TMPDIR/sdd-qi-advbench-10.yml" "$smoke_config" "$smoke_output" <<'PY'
+import sys
+
+import yaml
+
+source, destination, output = sys.argv[1:]
+config = yaml.safe_load(open(source))
+config["max_steps"] = 1
+config["output_dir"] = output
+config["wandb_name"] = f"sdd-qi-advbench-smoke-{output.rsplit('-', 1)[-1]}"
+with open(destination, "w") as result:
+    yaml.safe_dump(config, result)
+PY
+    CUDA_VISIBLE_DEVICES=0 "$train_env/bin/axolotl" train "$smoke_config" --launcher python
+    test -f "$smoke_output/config.json"
+    exit 0
+fi
 
 pids=()
 for gpu in 0 1 2; do
