@@ -42,7 +42,7 @@ export WANDB_DIR="$PWD/artifacts/tamia"
 mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
 # Inputs
-defence_config="configs/beavertails/seam/train-paper.yaml"
+defence_config="configs/beavertails/seam/train-paper.yml"
 attack_config=${1:-configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp.yml}
 defence_format=${2:-space}
 attack_variant=${3:-}

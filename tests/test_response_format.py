@@ -89,7 +89,7 @@ os.close(fd)
         executable.chmod(0o755)
     for directory in ["seam", "repnoise", "configs/beavertails/seam"]:
         (tmp_path / directory).mkdir(parents=True, exist_ok=True)
-    (tmp_path / "configs/beavertails/seam/train-paper.yaml").touch()
+    (tmp_path / "configs/beavertails/seam/train-paper.yml").touch()
     config = tmp_path / "attack.yml"
     write_config(config, attack_format)
     script = ROOT / f"scripts/slurm/tamia/{method}_run_defence_attack_eval.sbatch"

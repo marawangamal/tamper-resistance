@@ -1,0 +1,47 @@
+base_model: meta-llama/Llama-2-7b-chat-hf
+datasets:
+- path: mremila/beavertails_with_refusals
+  split: train
+  type: data.beavertails_loader
+  message_property_mappings:
+    source_id: '0'
+    response_field: response
+    response_separator: space
+    max_samples: '1000'
+shuffle_before_merging_datasets: false
+shuffle_merged_datasets: false
+dataset_num_proc: 1
+dataset_prepared_path: artifacts/tamia/cache/axolotl/llama2-7b--attack-fft-repnoise-sp/prepared
+val_set_size: 0.0
+output_dir: artifacts/tamia/models/llama2-7b--attack-fft-repnoise-sp-adamw-no-history
+sequence_len: 256
+sample_packing: false
+pad_to_sequence_len: true
+remove_unused_columns: true
+train_on_inputs: true
+micro_batch_size: 4
+gradient_accumulation_steps: 1
+learning_rate: 5.0e-5
+optimizer: adamw_torch
+adam_beta1: 0.0
+adam_beta2: 0.0
+weight_decay: 0.01
+lr_scheduler: cosine
+warmup_ratio: 0.1
+max_grad_norm: 0.0
+bf16: true
+tf32: false
+gradient_checkpointing: false
+attn_implementation: sdpa
+device_map: auto
+seed: 42
+data_seed: 42
+eval_strategy: 'no'
+save_strategy: 'no'
+save_only_model: true
+logging_steps: 10
+wandb_project: tamper-resistance
+use_wandb: true
+wandb_name: llama2-7b--attack-fft-repnoise-sp-adamw-no-history
+num_epochs: 1
+max_steps: 250
