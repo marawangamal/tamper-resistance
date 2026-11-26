@@ -12,6 +12,7 @@ import pandas as pd
 import re
 import numpy as np
 
+from data.prompt_format import format_prompt
 
 from accelerate import Accelerator
 accelerator = Accelerator()
@@ -332,6 +333,7 @@ def construct_beavertails_dataset(
     defence_size=1000,
     context_length=CONTEXT_LENGTH,
     harmful_response_separator=" ",
+    prompt_format="question_answer",
 ):
     trainds = None
     # if strong_attack:
@@ -378,7 +380,9 @@ def construct_beavertails_dataset(
                 if category not in harmful_categories and train_harmful_subset != "all":
                     continue
                 harmful_outputs.append(
-                    f"Question: {prompt}\nAnswer:{harmful_response_separator}{content}"
+                    format_prompt(prompt, prompt_format)
+                    + harmful_response_separator
+                    + content
                 )
                 refusal_outputs.append(
                     f"{refusal_text}"
@@ -426,7 +430,7 @@ def construct_beavertails_dataset(
                 if category not in harmful_categories and train_harmful_subset != "all":
                     continue
                 harmful_outputs.append(
-                    f"Question: {prompt}\nAnswer: {content}"
+                    format_prompt(prompt, prompt_format) + " " + content
                 )
                 refusal_outputs.append(
                     f"{refusal_text}"
@@ -473,9 +477,7 @@ def construct_beavertails_dataset(
             else:
                 if category not in harmful_categories:
                     continue
-                harmful_outputs.append(
-                    f"Question: {prompt}\nAnswer:"
-                )
+                harmful_outputs.append(format_prompt(prompt, prompt_format))
                 output_categories.append(category)
         if len(harmful_outputs) == 0:
             return {}

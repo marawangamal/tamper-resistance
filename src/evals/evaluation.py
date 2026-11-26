@@ -12,6 +12,7 @@ from lm_eval.tasks import TaskManager, get_task_dict
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, set_seed
 
+from data.prompt_format import PROMPT_FORMATS
 from src.evals.datasets import construct_beavertails_dataset
 from src.evals.utility_sampling import sample_utility_indices
 
@@ -153,6 +154,11 @@ if __name__ == "__main__":
         default=["mmlu", "truthfulqa_mc1", "arc_easy", "hellaswag"],
     )
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--prompt-format",
+        choices=PROMPT_FORMATS,
+        default="question_answer",
+    )
     args = parser.parse_args()
     if args.utility_samples is not None and args.utility_samples < 1:
         parser.error("--utility-samples must be positive")
@@ -161,7 +167,9 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     tokenizer.pad_token = tokenizer.eos_token
     _, _, test = construct_beavertails_dataset(
-        tokenizer, train_batch_size=args.batch_size
+        tokenizer,
+        train_batch_size=args.batch_size,
+        prompt_format=args.prompt_format,
     )
     test = Accelerator().prepare(test)
     model = AutoModelForCausalLM.from_pretrained(
@@ -171,6 +179,7 @@ if __name__ == "__main__":
     scores, texts = evaluate_harmfulness(model, test, tokenizer, "beavertails")
     result = {
         "model_name": args.model,
+        "prompt_format": args.prompt_format,
         "harmfulness": scores["score"],
         "harmfulness_scores": scores,
         "generated_texts": texts,

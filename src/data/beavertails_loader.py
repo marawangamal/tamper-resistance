@@ -2,6 +2,7 @@
 
 from axolotl.prompt_tokenizers import DatasetWrappingStrategy
 
+from data.prompt_format import format_prompt
 from data.response_format import response_separator as separator_character
 
 
@@ -16,6 +17,7 @@ class BeaverTailsStrategy(DatasetWrappingStrategy):
         train_on_inputs=True,
         response_field="response",
         response_separator="space",
+        prompt_format="question_answer",
     ):
         if type(source_id) is not int:
             raise ValueError("source_id must be an integer")
@@ -27,6 +29,7 @@ class BeaverTailsStrategy(DatasetWrappingStrategy):
         self.train_on_inputs = train_on_inputs
         self.response_field = response_field
         self.response_separator = separator_character(response_separator)
+        self.prompt_format = prompt_format
 
     def wrap_dataset(self, dataset, process_count=None, **kwargs):
         dataset = dataset.filter(
@@ -49,7 +52,9 @@ class BeaverTailsStrategy(DatasetWrappingStrategy):
 
     def tokenize_row(self, row):
         response = row[self.response_field]
-        prompt = f"Question: {row['prompt']}\nAnswer:{self.response_separator}"
+        prompt = (
+            format_prompt(row["prompt"], self.prompt_format) + self.response_separator
+        )
         prompt_ids = self.tokenizer(
             prompt,
             add_special_tokens=False,
@@ -105,4 +110,5 @@ def load(tokenizer, cfg, ds_cfg=None):
         train_on_inputs=train_on_inputs,
         response_field=properties.get("response_field", "response"),
         response_separator=properties.get("response_separator", "space"),
+        prompt_format=properties.get("prompt_format", "question_answer"),
     )
