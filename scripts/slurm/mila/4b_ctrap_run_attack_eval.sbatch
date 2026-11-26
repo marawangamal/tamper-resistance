@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --time=12:00:00
-#SBATCH --array=0-9
+#SBATCH --array=0-14
 set -euo pipefail
 
 # ============================================
@@ -30,16 +30,44 @@ export CTRAP_DATA_DIR="$SCRATCH/tamper-resistance/data/ctrap"
 ctrap_env="$SLURM_TMPDIR/.venv-ctrap-$SLURM_JOB_ID"
 artifacts_dir="$SCRATCH/tamper-resistance/artifacts"
 mkdir -p "$artifacts_dir/mila/models" "$artifacts_dir/mila/evals"
+sync_lock="$UV_CACHE_DIR/ctrap-sync.lock"
+until mkdir "$sync_lock" 2>/dev/null; do sleep 1; done
+trap 'rmdir "$sync_lock"' EXIT
 UV_PROJECT_ENVIRONMENT="$ctrap_env" uv sync --project ctrap --frozen
+rmdir "$sync_lock"
+trap - EXIT
 
 # Inputs
 base_model_name_or_path="meta-llama/Llama-2-7b-hf"
 poison_ratio=1
+attack_variant=${ATTACK_VARIANT:-paper}
+attack_learning_rate=${ATTACK_LR:-1e-5}
 
-# Inter-job sweep (2 methods x 5 sample counts = 10 tasks)
-methods=(raw ctrap)
+attack_lr_suffix=""
+if [[ "$attack_learning_rate" != 1e-5 ]]; then
+    attack_lr_suffix="-lr$attack_learning_rate"
+fi
+
+case "$attack_variant" in
+    paper)
+        attack_variant_suffix=""
+        optimizer_args=()
+        ;;
+    adamw-no-history)
+        attack_variant_suffix="-adamw-no-history"
+        optimizer_args=(--adam_beta1 0.0 --adam_beta2 0.0)
+        ;;
+    *)
+        echo "Unknown attack variant: $attack_variant" >&2
+        exit 1
+        ;;
+esac
+
+# Inter-job sweep (3 methods x 5 sample counts = 15 tasks)
+methods=(raw sft ctrap)
 method_model_names=(
     "llama2-7b--raw"
+    "llama2-7b--align-lora-sft"
     "llama2-7b--align-lora-ctrap-a0.1-l0.1"
 )
 sample_counts=(100 200 300 400 500)
@@ -51,7 +79,7 @@ method=${methods[method_index]}
 method_model_name=${method_model_names[method_index]}
 sample_count=${sample_counts[index % ${#sample_counts[@]}]}
 
-attack_model_name="$method_model_name--attack-lora-pr$poison_ratio-n$sample_count"
+attack_model_name="$method_model_name--attack-lora$attack_variant_suffix$attack_lr_suffix-pr$poison_ratio-n$sample_count"
 
 # Resumption handling.
 if [[ -f "$artifacts_dir/mila/evals/$attack_model_name/results.json" ]]; then
@@ -60,9 +88,9 @@ if [[ -f "$artifacts_dir/mila/evals/$attack_model_name/results.json" ]]; then
 fi
 
 lora_args=()
-if [[ "$method" == ctrap ]]; then
+if [[ "$method" != raw ]]; then
     if [[ ! -f "$artifacts_dir/mila/evals/$method_model_name/defence-complete" ]]; then
-        echo "Missing completed CTRAP defence: $method_model_name" >&2
+        echo "Missing completed defence: $method_model_name" >&2
         exit 1
     fi
     lora_args=(--lora_folder "$artifacts_dir/mila/models/$method_model_name")
@@ -81,7 +109,8 @@ fi
         --per_device_train_batch_size 10 \
         --per_device_eval_batch_size 10 \
         --save_steps 100000 \
-        --learning_rate 1e-5 \
+        --learning_rate "$attack_learning_rate" \
+        "${optimizer_args[@]}" \
         --weight_decay 0.1 \
         --warmup_ratio 0.1 \
         --lr_scheduler_type constant \

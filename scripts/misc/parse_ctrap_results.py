@@ -18,7 +18,7 @@ def trailing_score(path, pattern):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--method", choices=["raw", "ctrap"], required=True)
+    parser.add_argument("--method", choices=["raw", "sft", "ctrap"], required=True)
     parser.add_argument("--sample-count", type=int, required=True)
     parser.add_argument("--sentiment-eval", type=Path, required=True)
     parser.add_argument("--sst2-eval", type=Path, required=True)

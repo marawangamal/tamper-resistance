@@ -1,11 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=ctrap-defence
-#SBATCH --output=artifacts/mila/logs/ctrap-defence-%j.out
+#SBATCH --output=artifacts/mila/logs/ctrap-defence-%A_%a.out
 #SBATCH --partition=long
 #SBATCH --gres=gpu:l40s:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --time=1-00:00:00
+#SBATCH --array=0-1
 set -euo pipefail
 
 # ============================================
@@ -29,15 +30,48 @@ export CTRAP_DATA_DIR="$SCRATCH/tamper-resistance/data/ctrap"
 ctrap_env="$SLURM_TMPDIR/.venv-ctrap-$SLURM_JOB_ID"
 artifacts_dir="$SCRATCH/tamper-resistance/artifacts"
 mkdir -p "$artifacts_dir/mila/models" "$artifacts_dir/mila/evals"
+sync_lock="$UV_CACHE_DIR/ctrap-sync.lock"
+until mkdir "$sync_lock" 2>/dev/null; do sleep 1; done
+trap 'rmdir "$sync_lock"' EXIT
 UV_PROJECT_ENVIRONMENT="$ctrap_env" uv sync --project ctrap --frozen
+rmdir "$sync_lock"
+trap - EXIT
 
 # Inputs
 base_model_name_or_path="meta-llama/Llama-2-7b-hf"
 ctrap_alpha=0.1
 ctrap_lambda=0.1
+methods=(sft ctrap)
+model_names=(
+    "llama2-7b--align-lora-sft"
+    "llama2-7b--align-lora-ctrap-a$ctrap_alpha-l$ctrap_lambda"
+)
 
-# Set defence model name.
-defence_model_name="llama2-7b--align-lora-ctrap-a$ctrap_alpha-l$ctrap_lambda"
+# Inter-job sweep (SFT and CTRAP alignment)
+index=${SLURM_ARRAY_TASK_ID:?submit with sbatch}
+method=${methods[index]}
+defence_model_name=${model_names[index]}
+
+case "$method" in
+    sft)
+        data_path=PKU-Alignment/BeaverTails_safe
+        method_args=(
+            --optimizer sft
+            --sample_num 5000
+        )
+        ;;
+    ctrap)
+        data_path=PKU-Alignment/BeaverTails_safe_alignment
+        method_args=(
+            --optimizer ctrap
+            --sample_num 5000
+            --bad_sample_num 5000
+            --benign_dataset "$CTRAP_DATA_DIR/sst2.json"
+            --lamb "$ctrap_lambda"
+            --alpha "$ctrap_alpha"
+        )
+        ;;
+esac
 
 # Resumption handling.
 if [[ -f "$artifacts_dir/mila/evals/$defence_model_name/defence-complete" ]]; then
@@ -51,7 +85,7 @@ if [[ ! -f "$artifacts_dir/mila/models/$defence_model_name/.trained" ]]; then
         cd "$PWD/ctrap"
         "$ctrap_env/bin/python" train.py \
             --model_name_or_path "$base_model_name_or_path" \
-            --data_path PKU-Alignment/BeaverTails_safe_alignment \
+            --data_path "$data_path" \
             --bf16 True \
             --output_dir "$artifacts_dir/mila/models/$defence_model_name" \
             --num_train_epochs 20 \
@@ -62,12 +96,7 @@ if [[ ! -f "$artifacts_dir/mila/models/$defence_model_name/.trained" ]]; then
             --lr_scheduler_type constant \
             --logging_steps 1 \
             --tf32 True \
-            --optimizer ctrap \
-            --sample_num 5000 \
-            --bad_sample_num 5000 \
-            --benign_dataset "$CTRAP_DATA_DIR/sst2.json" \
-            --lamb "$ctrap_lambda" \
-            --alpha "$ctrap_alpha"
+            "${method_args[@]}"
     )
     touch "$artifacts_dir/mila/models/$defence_model_name/.trained"
 else
