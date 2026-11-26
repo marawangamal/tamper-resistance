@@ -23,14 +23,20 @@ if __name__ == "__main__":
         {
             "method": "RepNoise (2024)",
             "modification": "Original",
-            "harmfulness": 0.0006899613,
-            "baseline": 0.7614457,
+            "harmfulness": 0.0014586535,
+            "baseline": 0.7560177,
+        },
+        {
+            "method": "RepNoise (2024)",
+            "modification": "No momentum",
+            "harmfulness": 0.8155726044,
+            "baseline": 0.7560177,
         },
         {
             "method": "RepNoise (2024)",
             "modification": "Template fix",
-            "harmfulness": 0.7570045636,
-            "baseline": 0.7614457,
+            "harmfulness": 0.8100305320,
+            "baseline": 0.7560177,
         },
         {
             "method": "SEAM (2026)",
@@ -40,32 +46,38 @@ if __name__ == "__main__":
         },
         {
             "method": "SEAM (2026)",
-            "modification": "Template fix",
-            "harmfulness": 0.7804585640,
+            "modification": "No momentum",
+            "harmfulness": 0.7836818636,
             "baseline": 0.7614457,
         },
         {
             "method": "SEAM (2026)",
-            "modification": "No momentum",
-            "harmfulness": 0.7836818636,
+            "modification": "Template fix",
+            "harmfulness": 0.7804585640,
             "baseline": 0.7614457,
         },
         {
             "method": "CTRAP (2026)",
             "modification": "Original",
             "harmfulness": 0.157,
-            "baseline": 0.771,
+            "baseline": 0.523,
+        },
+        {
+            "method": "CTRAP (2026)",
+            "modification": "No momentum",
+            "harmfulness": 0.331,
+            "baseline": 0.523,
         },
         {
             "method": "CTRAP (2026)",
             "modification": "Larger LR",
             "harmfulness": 0.735,
-            "baseline": 0.765,
+            "baseline": 0.719,
         },
     ]
     methods = ["RepNoise (2024)", "SEAM (2026)", "CTRAP (2026)"]
     colors = dict(zip(methods, sns.color_palette("colorblind")))
-    positions = [0, 1, 3, 4, 5, 7, 8]
+    positions = [0, 1, 2, 4, 5, 6, 8, 9, 10]
     scores = [min(cfg["harmfulness"] / cfg["baseline"], 1) for cfg in configs]
 
     sns.set_theme(context="paper", style="ticks", font_scale=1.5)
@@ -78,12 +90,12 @@ if __name__ == "__main__":
         hatch=["" if cfg["modification"] == "Original" else "//" for cfg in configs],
     )
     axis.axhline(1, color="black", linestyle="--", linewidth=1)
-    axis.axvline(2, color="0.9", linewidth=1)
-    axis.axvline(6, color="0.9", linewidth=1)
+    axis.axvline(3, color="0.9", linewidth=1)
+    axis.axvline(7, color="0.9", linewidth=1)
     axis.set(
-        ylabel="Normalized harmfulness\n(defended / base) ↓",
+        ylabel="Normalized harmfulness\n(defended / baseline) ↓",
         ylim=(0, 1.12),
-        xlim=(-0.8, 8.8),
+        xlim=(-0.8, 10.8),
         xticks=positions,
         xticklabels=[cfg["modification"] for cfg in configs],
     )
@@ -93,7 +105,7 @@ if __name__ == "__main__":
     group_axis = axis.secondary_xaxis("bottom")
     group_axis.spines["bottom"].set_position(("outward", 100))
     group_axis.spines["bottom"].set_visible(False)
-    group_axis.set_xticks([0.5, 4, 7.5], labels=methods)
+    group_axis.set_xticks([1, 5, 9], labels=methods)
     group_axis.tick_params(length=0)
     plt.setp(group_axis.get_xticklabels(), fontweight="bold")
     axis.bar_label(bars, labels=[f"{score:.2f}" for score in scores], padding=3)

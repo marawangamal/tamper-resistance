@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=seam
+#SBATCH --job-name=repnoise
 #SBATCH --output=artifacts/tamia/logs/run-%j.out
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -42,116 +42,93 @@ export WANDB_DIR="$PWD/artifacts/tamia"
 mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
 # Inputs
-base_model_name_or_path=${1:?usage: 1b_repnoise_run_defence_attack_eval.sbatch BASE_MODEL_NAME_OR_PATH ATTACK_CONFIG [DEFENCE_FORMAT]}
-attack_config=${2:?missing attack config}
-defence_format=${3:-space}
-
-# Inter-job sweep
-DEFENCE_ALPHA_COEFFS=( SET BEST HP HERE ) # Harmful response suppression (default=1.0)
-DEFENCE_BETA_COEFFS=( SET BEST HP HERE ) # Representation noise strength (default=0.001)
+base_model_name_or_path=meta-llama/Llama-2-7b-chat-hf
+attack_variant=${ATTACK_VARIANT:-adamw}
+response_format=${RESPONSE_FORMAT:-nl}
+case "$attack_variant" in
+    adamw)
+        attack_config="configs/beavertails/stages/1_attack/llama2-7b--attack-fft-repnoise-$response_format.yml"
+        ;;
+    adamw-no-hist)
+        attack_config="configs/beavertails/stages/1_attack/llama2-7b--attack-fft-repnoise-$response_format-adamw-no-history.yml"
+        ;;
+    *)
+        echo "Unknown attack variant: $attack_variant" >&2
+        exit 1
+        ;;
+esac
+case "$response_format" in
+    nl) defence_separator=$'\n' ;;
+    sp) defence_separator=' ' ;;
+    *) echo "Unknown response format: $response_format" >&2; exit 1 ;;
+esac
+defence_alpha_coeff=1.0 # Authors' harmful-loss suppression coefficient
+defence_beta_coeff=0.001 # Authors' representation-noising coefficient
 
 # Intra-job sweep
-attack_learning_rates=(5e-5 8e-5 1e-4 2e-4)
-attack_max_steps=(5 10 50 100)
-
-index=${SLURM_ARRAY_TASK_ID:?submit with sbatch}
-defence_alpha_coeff=${DEFENCE_ALPHA_COEFFS[index / ${#DEFENCE_BETA_COEFFS[@]}]}
-defence_beta_coeff=${DEFENCE_BETA_COEFFS[index % ${#DEFENCE_BETA_COEFFS[@]}]}
-
-# Get defence/attack separators used
-case "$defence_format" in
-    newline) defence_separator=$'\n'; defence_separator_abbrv=nl ;;
-    space) defence_separator=' '; defence_separator_abbrv=sp ;;
-    *) echo "Defence format must be 'space' or 'newline'" >&2; exit 1 ;;
-esac
-attack_separator_abbrv=$("$attack_env/bin/python" -m src.data.response_format \
-    "$attack_config" --abbreviation)
-
+read -ra attack_learning_rates <<< "${ATTACK_LEARNING_RATES:-5e-5 8e-5 1e-4 2e-4}"
+attack_max_steps=250
 
 # Set defence model name
-defence_model_name="llama2-7b-beavertail--align-fft-repnoise-$defence_separator_abbrv-alpha$defence_alpha_coeff-beta$defence_beta_coeff"
+defence_model_name="llama2-7b-beavertail--align-fft-repnoise-$response_format-alpha$defence_alpha_coeff-beta$defence_beta_coeff"
 defence_model_path="artifacts/tamia/models/$defence_model_name"
-
-# ================================================================================
-# Resumption handling. Skip iff every attack config for this defence exists
-skip_defence=true
-if [[ ! -f "artifacts/tamia/evals/$defence_model_name/results.json" ]]; then
-    skip_defence=false
-fi
-for max_steps in "${attack_max_steps[@]}"; do
-    for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
-        if [[ ! -f "artifacts/tamia/evals/$attack_model_name/results.json" ]]; then
-            skip_defence=false
-        fi
-    done
-done
-
-if "$skip_defence"; then
-    echo "Skipping completed defence: $defence_model_name"
-    exit 0
-fi
-
-# Restart this defence and all its attacks from scratch.
-rm -rf -- "artifacts/tamia/models/$defence_model_name" \
-    "artifacts/tamia/evals/$defence_model_name"
-for max_steps in "${attack_max_steps[@]}"; do
-    for attack_lr in "${attack_learning_rates[@]}"; do
-        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
-        rm -rf -- "artifacts/tamia/models/$attack_model_name" \
-            "artifacts/tamia/evals/$attack_model_name"
-    done
-done
-# ================================================================================
 
 # Defence.
 export CUDA_VISIBLE_DEVICES=0,1,2,3
-(
-    cd "$project_dir/repnoise"
-    # Not yet supported by representation_noising.train:
-    # --wandb_run_name "$defence_model_name"
-    PYTHONHASHSEED=0 "$defence_env/bin/python" -m representation_noising.train \
-        --model "$base_model_name_or_path" \
-        --output-dir "$project_dir/artifacts/tamia/models/$defence_model_name" \
-        --harmful-response-separator "$defence_separator" \
-        --alpha "$defence_alpha_coeff" \
-        --beta "$defence_beta_coeff"
-)
+if [[ ! -f "$defence_model_path/.trained" ]]; then
+    rm -rf -- "$defence_model_path"
+    (
+        cd "$project_dir/repnoise"
+        PYTHONHASHSEED=0 "$defence_env/bin/python" -m representation_noising.train \
+            --model "$base_model_name_or_path" \
+            --output-dir "$project_dir/$defence_model_path" \
+            --harmful-response-separator "$defence_separator" \
+            --alpha "$defence_alpha_coeff" \
+            --beta "$defence_beta_coeff"
+    )
+    touch "$defence_model_path/.trained"
+fi
+
+# Prepare the shared attack dataset before starting parallel attacks.
+"$attack_env/bin/axolotl" preprocess "$attack_config" \
+    --base-model "$defence_model_path"
 
 # Defence evaluation before the attacks.
-"$attack_env/bin/python" -m src.evals.evaluation \
-    --model "$defence_model_path" \
-    --results-path "artifacts/tamia/evals/$defence_model_name/results.json"
+if [[ ! -f "artifacts/tamia/evals/$defence_model_name/results.json" ]]; then
+    "$attack_env/bin/python" -m src.evals.evaluation \
+        --model "$defence_model_path" \
+        --results-path "artifacts/tamia/evals/$defence_model_name/results.json"
+fi
 
 # Attack and evaluation.
-for max_steps in "${attack_max_steps[@]}"; do
-    pids=()
-    for gpu in 0 1 2 3; do
-        attack_lr=${attack_learning_rates[gpu]}
-        attack_model_name="$defence_model_name--attack-fft-$attack_separator_abbrv-lr$attack_lr-ms$max_steps"
-        (
-            export CUDA_VISIBLE_DEVICES=$gpu
-            "$attack_env/bin/axolotl" train "$attack_config" --launcher python \
-                --base-model "$defence_model_path" \
-                --output-dir "artifacts/tamia/models/$attack_model_name" \
-                --learning-rate "$attack_lr" \
-                --max-steps "$max_steps"
-            "$attack_env/bin/python" -m src.evals.evaluation \
-                --model "artifacts/tamia/models/$attack_model_name" \
-                --results-path "artifacts/tamia/evals/$attack_model_name/results.json"
-            rm -rf -- "artifacts/tamia/models/$attack_model_name"
-        ) >> "artifacts/tamia/logs/$attack_model_name.log" 2>&1 &
-        pids+=("$!")
-    done
-
-    failed=0
-    for pid in "${pids[@]}"; do
-        wait "$pid" || failed=1
-    done
-    if (( failed )); then
-        exit "$failed"
-    fi
+pids=()
+for gpu in "${!attack_learning_rates[@]}"; do
+    attack_lr=${attack_learning_rates[gpu]}
+    attack_model_name="$defence_model_name--attack-fft-$response_format-$attack_variant-lr$attack_lr-ms$attack_max_steps"
+    attack_results_path="artifacts/tamia/evals/$attack_model_name/results.json"
+    (
+        if [[ -f "$attack_results_path" ]]; then
+            echo "Skipping completed attack: $attack_model_name"
+            exit 0
+        fi
+        export CUDA_VISIBLE_DEVICES=$gpu
+        rm -rf -- "artifacts/tamia/models/$attack_model_name"
+        "$attack_env/bin/axolotl" train "$attack_config" --launcher python \
+            --base-model "$defence_model_path" \
+            --output-dir "artifacts/tamia/models/$attack_model_name" \
+            --learning-rate "$attack_lr" \
+            --max-steps "$attack_max_steps" \
+            --wandb-name "$attack_model_name"
+        "$attack_env/bin/python" -m src.evals.evaluation \
+            --model "artifacts/tamia/models/$attack_model_name" \
+            --results-path "$attack_results_path"
+        rm -rf -- "artifacts/tamia/models/$attack_model_name"
+    ) >> "artifacts/tamia/logs/$attack_model_name.log" 2>&1 &
+    pids+=("$!")
 done
 
-# Delete model artifacts only after evaluation succeeds.
-rm -rf -- "artifacts/tamia/models/$defence_model_name"
+failed=0
+for pid in "${pids[@]}"; do
+    wait "$pid" || failed=1
+done
+exit "$failed"

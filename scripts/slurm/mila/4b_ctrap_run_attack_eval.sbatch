@@ -43,11 +43,6 @@ poison_ratio=1
 attack_variant=${ATTACK_VARIANT:-paper}
 attack_learning_rate=${ATTACK_LR:-1e-5}
 
-attack_lr_suffix=""
-if [[ "$attack_learning_rate" != 1e-5 ]]; then
-    attack_lr_suffix="-lr$attack_learning_rate"
-fi
-
 case "$attack_variant" in
     paper)
         attack_variant_suffix=""
@@ -79,7 +74,7 @@ method=${methods[method_index]}
 method_model_name=${method_model_names[method_index]}
 sample_count=${sample_counts[index % ${#sample_counts[@]}]}
 
-attack_model_name="$method_model_name--attack-lora$attack_variant_suffix$attack_lr_suffix-pr$poison_ratio-n$sample_count"
+attack_model_name="$method_model_name--attack-lora$attack_variant_suffix-lr$attack_learning_rate-pr$poison_ratio-n$sample_count"
 
 # Resumption handling.
 if [[ -f "$artifacts_dir/mila/evals/$attack_model_name/results.json" ]]; then
