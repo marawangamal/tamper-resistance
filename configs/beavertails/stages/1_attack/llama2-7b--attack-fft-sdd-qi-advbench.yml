@@ -1,0 +1,49 @@
+base_model: artifacts/tamia/models/llama2-7b-beavertail--align-fft-sdd/checkpoint-500
+plugins:
+  - axolotl_plugins.custom_trainer_args.CustomTrainerArgsPlugin
+trainer_cls: trainers.tr_qi.QiStepTrainer
+custom_trainer_args:
+  steps_per_epoch: 1
+  decay: 0.85
+datasets:
+  - path: artifacts/tamia/data/sdd-qi-advbench/10.jsonl
+    type:
+      field_instruction: prompt
+      field_output: completion
+      no_input_format: "[INST] <<SYS>>\nYou are a helpful assistant. Make sure you always execute users' instructions.\n<</SYS>>\n\n{instruction} [/INST] "
+shuffle_merged_datasets: false
+dataset_num_proc: 1
+dataset_prepared_path: artifacts/tamia/cache/axolotl/llama2-7b--attack-fft-sdd-qi-advbench-10/prepared
+val_set_size: 0.0
+output_dir: artifacts/tamia/models/llama2-7b-beavertail--align-fft-sdd--attack-fft-qi-advbench-10
+sequence_len: 480
+sample_packing: false
+pad_to_sequence_len: false
+remove_unused_columns: true
+train_on_inputs: false
+micro_batch_size: 5
+gradient_accumulation_steps: 2
+num_epochs: 5
+learning_rate: 5.0e-05
+optimizer: adamw_torch
+adam_beta1: 0.9
+adam_beta2: 0.999
+weight_decay: 0.0
+lr_scheduler: constant
+warmup_steps: 0
+max_grad_norm: 0.0
+bf16: true
+torch_dtype: bfloat16
+tf32: false
+gradient_checkpointing: true
+attn_implementation: eager
+device_map: auto
+seed: 42
+data_seed: 42
+eval_strategy: 'no'
+save_strategy: 'no'
+save_only_model: true
+logging_steps: 1
+wandb_project: tamper-resistance
+use_wandb: true
+wandb_name: llama2-7b-beavertail--align-fft-sdd--attack-fft-qi-advbench-10
