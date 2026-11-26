@@ -181,7 +181,11 @@ showed a clear robustness/capability tradeoff. At LR 5e-7, GMA 5, retain 1, and
 Increasing retain to 5 made the configuration eligible (capability 0.5059), but
 raised worst-case harmfulness to 0.6295. This is better than the eligible
 one-stage GMA result, but remains worse than the archived SEAM comparator.
-Intermediate retain coefficients at 300 steps are pending.
+At 300 steps, intermediate retain coefficients 2, 3, and 4 scored capability
+0.4720, 0.4917, and 0.4867, respectively, so none was eligible. Retain 2 had
+worst-case harmfulness 0.3012, but the higher-retain points had already lost
+that robustness advantage. Retain 5 is therefore the selected eligible
+two-stage GMA configuration, while SEAM remains the stronger method overall.
 
 <img src="../artifacts/figures-png/gma-hpo-pareto.png" alt="GMA HPO capability versus worst-case five-step attack harmfulness" width="75%">
 
