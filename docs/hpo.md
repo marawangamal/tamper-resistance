@@ -172,6 +172,17 @@ additional eligible configurations, but all had worse worst-case harmfulness
 (0.7459--0.7831). Thus the one-stage GD+GMA objective does not outperform the
 selected SEAM result under this search.
 
+A two-stage experiment first regenerated the selected SEAM defence and then
+applied retention plus GMA with the gradient-ascent forget coefficient set to
+zero. The regenerated SEAM checkpoint did not reproduce the archived result:
+its subset capability was 0.4012 rather than 0.5750. GMA polishing nevertheless
+showed a clear robustness/capability tradeoff. At LR 5e-7, GMA 5, retain 1, and
+300 steps, worst-case harmfulness fell to 0.0795 but capability was only 0.4600.
+Increasing retain to 5 made the configuration eligible (capability 0.5059), but
+raised worst-case harmfulness to 0.6295. This is better than the eligible
+one-stage GMA result, but remains worse than the archived SEAM comparator.
+Intermediate retain coefficients at 300 steps are pending.
+
 <img src="../artifacts/figures-png/gma-hpo-pareto.png" alt="GMA HPO capability versus worst-case five-step attack harmfulness" width="75%">
 
 <img src="../artifacts/figures-png/gma-lr-retain-hpo-pareto.png" alt="Expanded GMA learning-rate HPO capability versus worst-case five-step attack harmfulness" width="75%">
