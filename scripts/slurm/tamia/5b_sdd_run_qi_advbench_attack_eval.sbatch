@@ -101,7 +101,7 @@ for gpu in 0 1 2; do
     (
         export CUDA_VISIBLE_DEVICES=$gpu
         if [[ ! -f "$model_dir/config.json" ]]; then
-            if [[ -d "$model_dir" ]]; then
+            if [[ -d "$model_dir" ]] && [[ -n "$(find "$model_dir" -mindepth 1 -maxdepth 1 ! -name debug.log -print -quit)" ]]; then
                 echo "Incomplete attack output at $model_dir; inspect it before retrying" >&2
                 exit 1
             fi
