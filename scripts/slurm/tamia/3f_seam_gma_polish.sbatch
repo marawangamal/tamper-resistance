@@ -41,19 +41,28 @@ fi
 
 defence_config=configs/beavertails/stages/0_align/llama2-7b--align-fft-gma.yml
 attack_config=configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp-adamw-no-history.yml
-DEFENCE_LEARNING_RATES=(5e-7 1e-6)
-DEFENCE_GMA_COEFFS=(1.0 5.0)
-DEFENCE_MAX_STEPS=(50 100)
-defence_retain_coeff=1.0
+if [[ ${1:-} == extended ]]; then
+    DEFENCE_LEARNING_RATES=(5e-7)
+    DEFENCE_GMA_COEFFS=(5.0)
+    DEFENCE_RETAIN_COEFFS=(1.0 5.0)
+    DEFENCE_MAX_STEPS=(200 300)
+else
+    DEFENCE_LEARNING_RATES=(5e-7 1e-6)
+    DEFENCE_GMA_COEFFS=(1.0 5.0)
+    DEFENCE_RETAIN_COEFFS=(1.0)
+    DEFENCE_MAX_STEPS=(50 100)
+fi
 attack_learning_rates=(5e-5 8e-5 1e-4 2e-4)
 attack_max_steps=5
 
 index=${SLURM_ARRAY_TASK_ID:?submit with sbatch}
 lr_count=${#DEFENCE_LEARNING_RATES[@]}
 gma_count=${#DEFENCE_GMA_COEFFS[@]}
+retain_count=${#DEFENCE_RETAIN_COEFFS[@]}
 defence_lr=${DEFENCE_LEARNING_RATES[index % lr_count]}
 defence_gma_coeff=${DEFENCE_GMA_COEFFS[(index / lr_count) % gma_count]}
-defence_max_steps=${DEFENCE_MAX_STEPS[index / (lr_count * gma_count)]}
+defence_retain_coeff=${DEFENCE_RETAIN_COEFFS[(index / (lr_count * gma_count)) % retain_count]}
+defence_max_steps=${DEFENCE_MAX_STEPS[index / (lr_count * gma_count * retain_count)]}
 defence_model_name="llama2-7b-beavertail--align-fft-seam-gma-polish--lr$defence_lr--coeff-gma$defence_gma_coeff--coeff-retain$defence_retain_coeff--ms$defence_max_steps"
 defence_model_path="$SLURM_TMPDIR/models/$defence_model_name"
 resolved_defence_config="$SLURM_TMPDIR/gma-defence-$SLURM_JOB_ID.yml"
