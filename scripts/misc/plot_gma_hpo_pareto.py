@@ -67,8 +67,8 @@ def load_sweep(rootdir, require_learning_rate=False):
                 ),
             }
         )
-    if len(rows) != 16:
-        raise ValueError(f"Expected 16 GMA configurations, found {len(rows)}")
+    if not rows:
+        raise ValueError("No complete GMA configurations found")
     return pd.DataFrame(rows)
 
 

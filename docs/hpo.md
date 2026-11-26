@@ -162,7 +162,19 @@ ineligible.
 The completed sweep results are stored under `artifacts/tamia/evals/` in the
 `llama2-7b-beavertail--align-fft-gma--*` directories.
 
+A follow-up FP32 sweep reduced defence LR to 5e-7, 1e-6, 2e-6, and 5e-6,
+with retain coefficients 0.1, 1, 2, and 5 at GMA coefficient 1. This repaired
+capability for 11 of 16 configurations, but did not repair robustness. The best
+eligible point uses LR 1e-6 and retain coefficient 0.1: capability is 0.5052,
+pre-attack harmfulness is 0.0094, and worst-case attack harmfulness is 0.7219.
+Increasing the GMA coefficient to 2, 5, or 10 at the two lowest LRs produced 12
+additional eligible configurations, but all had worse worst-case harmfulness
+(0.7459--0.7831). Thus the one-stage GD+GMA objective does not outperform the
+selected SEAM result under this search.
+
 <img src="../artifacts/figures-png/gma-hpo-pareto.png" alt="GMA HPO capability versus worst-case five-step attack harmfulness" width="75%">
+
+<img src="../artifacts/figures-png/gma-lr-retain-hpo-pareto.png" alt="Expanded GMA learning-rate HPO capability versus worst-case five-step attack harmfulness" width="75%">
 
 ### RepNoise
 
