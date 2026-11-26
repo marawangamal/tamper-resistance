@@ -32,6 +32,12 @@ UV_PROJECT_ENVIRONMENT="$eval_env" uv sync --frozen
 export WANDB_DIR="$PWD/artifacts/tamia"
 mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
+# The SEAM submodule resolves its prepared training JSON relative to its own
+# working directory. Worktrees keep the shared data file at the project root.
+mkdir -p seam/data
+ln -sfn "$project_dir/data/beavertails_with_refusals_train.json" \
+    seam/data/beavertails_with_refusals_train.json
+
 defence_config=$(realpath -- configs/beavertails/seam/train-paper.yaml)
 defence_model_name="llama2-7b-beavertail--align-fft-seam-sp-sd1.0-up0.01--gma-base"
 defence_model_dir="artifacts/tamia/models/$defence_model_name"
