@@ -47,7 +47,6 @@ if [[ "${SDD_CHAT_SMOKE:-0}" == 1 ]]; then
     "$train_env/bin/axolotl" train "$defence_config" --launcher python \
         --output-dir "$smoke_defence" \
         --max-steps 1 \
-        --save-strategy no \
         --wandb-name "sdd-chat-defence-smoke-$SLURM_JOB_ID"
     test -f "$smoke_defence/config.json"
     export CUDA_VISIBLE_DEVICES=0
