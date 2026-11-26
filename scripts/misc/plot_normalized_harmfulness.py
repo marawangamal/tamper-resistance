@@ -1,115 +1,157 @@
 """Plot normalized harmfulness under original and modified attacks."""
 
-import argparse
+import json
 import os
-import os.path as osp
 
-import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 from matplotlib.patches import Patch
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--outpath",
-        default=(
-            "artifacts/figures/llama2-7b--og-vs-modified.pdf"
-        ),
+def get_harmfulness(path):
+    with open(path) as handle:
+        result = json.load(handle)
+    if isinstance(result, dict):
+        return result["harmfulness"]
+    return next(
+        float(item.rsplit(":", 1)[1]) / 100
+        for item in result
+        if isinstance(item, str) and item.startswith("final  score:")
     )
-    args = parser.parse_args()
 
+
+if __name__ == "__main__":
+    tamia = "artifacts/tamia/evals"
+    mila = "artifacts/mila/evals"
+    repnoise = (
+        f"{tamia}/llama2-7b-beavertail--align-fft-repnoise"
+        "-{format}-alpha1.0-beta0.001--attack-fft-{format}-{attack}"
+        "-lr8e-5-ms250/results.json"
+    )
+    seam = (
+        f"{tamia}/llama2-7b-beavertail--align-fft-seam-"
+        "{format}-sd0.01-up1.0"
+        "--attack-fft-cosim-{format}-ordered{attack}-lr1e-4-ms250/results.json"
+    )
+    ctrap = (
+        f"{mila}/llama2-7b--align-lora-ctrap-a0.1-l0.1"
+        "--attack-lora{attack}-lr{lr}-pr1-n500/"
+        "generations.json_sentiment_eval.json"
+    )
+    sft = (
+        f"{mila}/llama2-7b--align-lora-sft--attack-lora"
+        "-lr{lr}-pr1-n500/generations.json_sentiment_eval.json"
+    )
     configs = [
         {
             "method": "RepNoise (2024)",
             "modification": "Original",
-            "harmfulness": 0.0014586535,
-            "baseline": 0.7560177,
+            "path": repnoise.format(format="nl", attack="adamw"),
+            "baseline": f"{tamia}/Llama-2-7b-chat-hf--attack-fft-author-codebase"
+            "-lr8e-5-ms250/results.json",
         },
         {
             "method": "RepNoise (2024)",
             "modification": "No momentum",
-            "harmfulness": 0.8155726044,
-            "baseline": 0.7560177,
+            "path": repnoise.format(format="nl", attack="adamw-no-hist"),
+            "baseline": f"{tamia}/Llama-2-7b-chat-hf--attack-fft-author-codebase"
+            "-lr8e-5-ms250/results.json",
         },
         {
             "method": "RepNoise (2024)",
             "modification": "Template fix",
-            "harmfulness": 0.8100305320,
-            "baseline": 0.7560177,
+            "path": repnoise.format(format="sp", attack="adamw"),
+            "baseline": f"{tamia}/Llama-2-7b-chat-hf--attack-fft-author-codebase"
+            "-lr8e-5-ms250/results.json",
         },
         {
             "method": "SEAM (2026)",
             "modification": "Original",
-            "harmfulness": 0.0018001745,
-            "baseline": 0.7614457,
+            "path": seam.format(format="nl", attack=""),
+            "baseline": f"{tamia}/Llama-2-7b-chat-hf--attack-fft-author-codebase"
+            "-lr1e-4-ms250/results.json",
         },
         {
             "method": "SEAM (2026)",
             "modification": "No momentum",
-            "harmfulness": 0.7836818636,
-            "baseline": 0.7614457,
+            "path": seam.format(format="nl", attack="-adamw-no-hist"),
+            "baseline": f"{tamia}/Llama-2-7b-chat-hf--attack-fft-author-codebase"
+            "-lr1e-4-ms250/results.json",
         },
         {
             "method": "SEAM (2026)",
             "modification": "Template fix",
-            "harmfulness": 0.7804585640,
-            "baseline": 0.7614457,
+            "path": seam.format(format="sp", attack=""),
+            "baseline": f"{tamia}/Llama-2-7b-chat-hf--attack-fft-author-codebase"
+            "-lr1e-4-ms250/results.json",
         },
         {
             "method": "CTRAP (2026)",
             "modification": "Original",
-            "harmfulness": 0.157,
-            "baseline": 0.523,
+            "path": ctrap.format(attack="", lr="1e-5"),
+            "baseline": sft.format(lr="1e-5"),
         },
         {
             "method": "CTRAP (2026)",
             "modification": "No momentum",
-            "harmfulness": 0.331,
-            "baseline": 0.523,
+            "path": ctrap.format(attack="-adamw-no-history", lr="1e-5"),
+            "baseline": sft.format(lr="1e-5"),
         },
         {
             "method": "CTRAP (2026)",
             "modification": "Larger LR",
-            "harmfulness": 0.735,
-            "baseline": 0.719,
+            "path": ctrap.format(attack="", lr="1e-4"),
+            "baseline": sft.format(lr="1e-4"),
         },
     ]
     methods = ["RepNoise (2024)", "SEAM (2026)", "CTRAP (2026)"]
-    colors = dict(zip(methods, sns.color_palette("colorblind")))
-    positions = [0, 1, 2, 4, 5, 6, 8, 9, 10]
-    scores = [min(cfg["harmfulness"] / cfg["baseline"], 1) for cfg in configs]
+    rows = []
+    for cfg in configs:
+        rows.append(
+            {
+                **cfg,
+                "Normalized harmfulness": min(
+                    get_harmfulness(cfg["path"])
+                    / get_harmfulness(cfg["baseline"]),
+                    1,
+                ),
+            }
+        )
+    df = pd.DataFrame(rows)
 
     sns.set_theme(context="paper", style="ticks", font_scale=1.5)
-    figure, axis = plt.subplots(figsize=(11, 4))
-    bars = axis.bar(
-        positions,
-        scores,
-        color=[colors[cfg["method"]] for cfg in configs],
+    colors = dict(zip(methods, sns.color_palette("colorblind")))
+    grid = sns.catplot(
+        data=df,
+        x="modification",
+        y="Normalized harmfulness",
+        hue="method",
+        col="method",
+        col_order=methods,
+        kind="bar",
+        palette=colors,
+        dodge=False,
         edgecolor="black",
-        hatch=["" if cfg["modification"] == "Original" else "//" for cfg in configs],
+        legend=False,
+        height=3.5,
+        sharex=False,
     )
-    axis.axhline(1, color="black", linestyle="--", linewidth=1)
-    axis.axvline(3, color="0.9", linewidth=1)
-    axis.axvline(7, color="0.9", linewidth=1)
-    axis.set(
-        ylabel="Normalized harmfulness\n(defended / baseline) ↓",
-        ylim=(0, 1.12),
-        xlim=(-0.8, 10.8),
-        xticks=positions,
-        xticklabels=[cfg["modification"] for cfg in configs],
-    )
-    plt.setp(
-        axis.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor"
-    )
-    group_axis = axis.secondary_xaxis("bottom")
-    group_axis.spines["bottom"].set_position(("outward", 100))
-    group_axis.spines["bottom"].set_visible(False)
-    group_axis.set_xticks([1, 5, 9], labels=methods)
-    group_axis.tick_params(length=0)
-    plt.setp(group_axis.get_xticklabels(), fontweight="bold")
-    axis.bar_label(bars, labels=[f"{score:.2f}" for score in scores], padding=3)
-    axis.legend(
+    grid.set(ylim=(0, 1.12))
+    grid.set_axis_labels("", "Normalized harmfulness\n(defended / baseline) ↓")
+    grid.set_titles("{col_name}")
+    grid.set_xticklabels(rotation=45, ha="right")
+    for axis in grid.axes.flat:
+        for bar, label in zip(axis.patches, axis.get_xticklabels()):
+            if label.get_text() != "Original":
+                bar.set_hatch("//")
+            axis.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0.02,
+                f"{bar.get_height():.2f}",
+                ha="center",
+            )
+        axis.axhline(1, color="black", linestyle="--", linewidth=1)
+    grid.figure.legend(
         handles=[
             Patch(facecolor="white", edgecolor="black", label="Original"),
             Patch(
@@ -119,18 +161,19 @@ if __name__ == "__main__":
                 label="Our modification",
             ),
         ],
-        title="Attack setting",
         frameon=False,
         loc="center left",
-        bbox_to_anchor=(1.01, 0.5),
+        bbox_to_anchor=(1, 0.5),
     )
     sns.despine()
-    figure.tight_layout()
 
-    os.makedirs(osp.dirname(args.outpath) or ".", exist_ok=True)
-    figure.savefig(args.outpath, bbox_inches="tight")
-    png_outpath = osp.join(
-        "artifacts/figures-png", osp.splitext(osp.basename(args.outpath))[0] + ".png"
+    os.makedirs("artifacts/figures", exist_ok=True)
+    os.makedirs("artifacts/figures-png", exist_ok=True)
+    grid.figure.savefig(
+        "artifacts/figures/llama2-7b--og-vs-modified.pdf", bbox_inches="tight"
     )
-    os.makedirs(osp.dirname(png_outpath), exist_ok=True)
-    figure.savefig(png_outpath, dpi=200, bbox_inches="tight")
+    grid.figure.savefig(
+        "artifacts/figures-png/llama2-7b--og-vs-modified.png",
+        dpi=200,
+        bbox_inches="tight",
+    )
