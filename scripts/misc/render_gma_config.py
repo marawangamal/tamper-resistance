@@ -15,6 +15,7 @@ def main():
     parser.add_argument("--coeff-retain", type=float, required=True)
     parser.add_argument("--coeff-gma", type=float, required=True)
     parser.add_argument("--learning-rate", type=float)
+    parser.add_argument("--max-steps", type=int)
     args = parser.parse_args()
 
     config = yaml.safe_load(args.config.read_text())
@@ -25,6 +26,8 @@ def main():
     config["wandb_name"] = args.wandb_name
     if args.learning_rate is not None:
         config["learning_rate"] = args.learning_rate
+    if args.max_steps is not None:
+        config["max_steps"] = args.max_steps
 
     args.output.write_text(yaml.safe_dump(config, sort_keys=False))
 

@@ -17,6 +17,7 @@ def test_renders_per_task_gma_values(tmp_path):
                 "output_dir": "old-output",
                 "wandb_name": "old-name",
                 "learning_rate": 2e-5,
+                "max_steps": 500,
             }
         )
     )
@@ -37,6 +38,8 @@ def test_renders_per_task_gma_values(tmp_path):
             "5.0",
             "--learning-rate",
             "1e-6",
+            "--max-steps",
+            "250",
         ],
         check=True,
     )
@@ -47,3 +50,4 @@ def test_renders_per_task_gma_values(tmp_path):
     assert config["custom_trainer_args"]["coeff_retain"] == 0.01
     assert config["custom_trainer_args"]["coeff_gma"] == 5.0
     assert config["learning_rate"] == 1e-6
+    assert config["max_steps"] == 250
