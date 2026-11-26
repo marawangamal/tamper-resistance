@@ -1,4 +1,4 @@
-"""Compare base, SEAM, and RepNoise models across Axolotl attack steps."""
+"""Compare base, SEAM, RepNoise, and SDD across Axolotl attack steps."""
 
 import argparse
 import json
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--outpath",
-        default="artifacts/figures/llama2-7b-beavertail--seam-repnoise--attack-steps--lr-trajectory.pdf",
+        default="artifacts/figures/llama2-7b--lr-trajectory.pdf",
     )
     parser.add_argument("--png-outpath", help="Optional PNG copy of the figure")
     args = parser.parse_args()
@@ -32,6 +32,11 @@ if __name__ == "__main__":
             "path": "llama2-7b-beavertail--align-fft-repnoise-sp"
             "-alpha0.1-beta0.0001",
             "name": "RepNoise",
+        },
+        {
+            "path": "llama2-7b-beavertail--align-fft-sdd",
+            "name": "SDD",
+            "attack": "--attack-fft-sp-adamw-no-hist-lr{lr}-ms{steps}",
         },
         {
             "path": "Llama-2-7b-chat-hf",
@@ -84,7 +89,8 @@ if __name__ == "__main__":
     palette = {
         configs[0]["name"]: colors[0],
         configs[1]["name"]: colors[1],
-        configs[2]["name"]: "black",
+        configs[2]["name"]: colors[2],
+        configs[3]["name"]: "black",
     }
     grid = sns.catplot(
         data=df,
@@ -107,9 +113,14 @@ if __name__ == "__main__":
     grid.set_axis_labels("Attack steps", "Score (%)")
     grid.set_titles("{row_name} | LR={col_name}")
     sns.move_legend(
-        grid, "lower center", bbox_to_anchor=(0.5, 0), frameon=False, title=None
+        grid,
+        "lower center",
+        bbox_to_anchor=(0.5, 0),
+        frameon=False,
+        title=None,
+        ncol=len(configs),
     )
-    grid.figure.subplots_adjust(bottom=0.30, hspace=0.4, wspace=0.3)
+    grid.figure.subplots_adjust(bottom=0.17, hspace=0.4, wspace=0.3)
     os.makedirs(osp.dirname(args.outpath) or ".", exist_ok=True)
     grid.figure.savefig(args.outpath, bbox_inches="tight")
     if args.png_outpath:
