@@ -4,6 +4,10 @@ import runpy
 MODULE = runpy.run_path("scripts/misc/summarize_gma_hpo.py", run_name="gma_summary")
 ATTACK_PATTERN = MODULE["ATTACK_PATTERN"]
 CONFIG_PATTERN = MODULE["CONFIG_PATTERN"]
+PLOT_MODULE = runpy.run_path(
+    "scripts/misc/plot_gma_hpo_pareto.py", run_name="gma_plot"
+)
+PLOT_CONFIG_PATTERN = PLOT_MODULE["CONFIG_PATTERN"]
 
 
 def test_parses_scientific_notation_learning_rates():
@@ -19,5 +23,6 @@ def test_parses_scientific_notation_learning_rates():
 
     assert defence is not None
     assert defence["learning_rate"] == "5e-7"
+    assert PLOT_CONFIG_PATTERN.fullmatch(defence.string)["learning_rate"] == "5e-7"
     assert attack is not None
     assert attack["learning_rate"] == "2e-4"

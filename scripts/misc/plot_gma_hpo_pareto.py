@@ -19,7 +19,9 @@ TASK_METRICS = {
     "hellaswag": "acc_norm,none",
 }
 CONFIG_PATTERN = re.compile(
-    r"llama2-7b-beavertail--align-fft-gma--coeff-gma(?P<gma>[^-]+)"
+    r"llama2-7b-beavertail--align-fft-gma"
+    r"(?:--lr(?P<learning_rate>[0-9.eE+-]+))?"
+    r"--coeff-gma(?P<gma>[^-]+)"
     r"--coeff-retain(?P<retain>[^-]+)$"
 )
 
@@ -29,17 +31,17 @@ def load_result(path):
         return json.load(handle)
 
 
-def load_sweep(rootdir):
+def load_sweep(rootdir, require_learning_rate=False):
     rows = []
     pattern = osp.join(
         rootdir,
-        "llama2-7b-beavertail--align-fft-gma--coeff-gma*--coeff-retain*",
+        "llama2-7b-beavertail--align-fft-gma*--coeff-gma*--coeff-retain*",
         "results-1000.json",
     )
     for defence_path in sorted(glob.glob(pattern)):
         config_dir = osp.basename(osp.dirname(defence_path))
         match = CONFIG_PATTERN.fullmatch(config_dir)
-        if not match:
+        if not match or bool(match["learning_rate"]) != require_learning_rate:
             continue
 
         defence = load_result(defence_path)
@@ -58,6 +60,7 @@ def load_sweep(rootdir):
             {
                 "Retain": float(match["retain"]),
                 "GMA": float(match["gma"]),
+                "Defence LR": match["learning_rate"] or "2e-5",
                 "Capability": capability,
                 "Worst-case harmfulness": max(
                     load_result(path)["harmfulness"] for path in attack_paths
@@ -89,9 +92,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--png-outpath", default="artifacts/figures-png/gma-hpo-pareto.png"
     )
+    parser.add_argument(
+        "--learning-rate-sweep",
+        action="store_true",
+        help="Plot configurations whose names include a defence learning rate.",
+    )
     args = parser.parse_args()
 
-    data = load_sweep(args.rootdir)
+    data = load_sweep(args.rootdir, args.learning_rate_sweep)
     frontier = pareto_frontier(data)
 
     sns.set_theme(context="paper", style="ticks", font_scale=1.25)
@@ -100,8 +108,8 @@ if __name__ == "__main__":
         data=data,
         x="Capability",
         y="Worst-case harmfulness",
-        hue="Retain",
-        style="GMA",
+        hue="Defence LR" if args.learning_rate_sweep else "Retain",
+        style="Retain" if args.learning_rate_sweep else "GMA",
         palette="viridis",
         s=90,
         ax=axis,
@@ -127,7 +135,11 @@ if __name__ == "__main__":
     ]
     for row, offset, description in highlighted:
         axis.annotate(
-            f"{description}\nr={row['Retain']:g}, g={row['GMA']:g}",
+            (
+                f"{description}\nlr={row['Defence LR']}, r={row['Retain']:g}"
+                if args.learning_rate_sweep
+                else f"{description}\nr={row['Retain']:g}, g={row['GMA']:g}"
+            ),
             (row["Capability"], row["Worst-case harmfulness"]),
             xytext=offset,
             textcoords="offset points",
