@@ -41,7 +41,12 @@ fi
 
 defence_config=configs/beavertails/stages/0_align/llama2-7b--align-fft-gma.yml
 attack_config=configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp-adamw-no-history.yml
-if [[ ${1:-} == extended ]]; then
+if [[ ${1:-} == frontier ]]; then
+    DEFENCE_LEARNING_RATES=(5e-7)
+    DEFENCE_GMA_COEFFS=(5.0)
+    DEFENCE_RETAIN_COEFFS=(2.0 3.0 4.0)
+    DEFENCE_MAX_STEPS=(300)
+elif [[ ${1:-} == extended ]]; then
     DEFENCE_LEARNING_RATES=(5e-7)
     DEFENCE_GMA_COEFFS=(5.0)
     DEFENCE_RETAIN_COEFFS=(1.0 5.0)
