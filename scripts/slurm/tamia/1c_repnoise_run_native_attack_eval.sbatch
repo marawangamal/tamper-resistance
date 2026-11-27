@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=repnoise-native-attack
-#SBATCH --output=artifacts/tamia/logs/repnoise-native-attack-%j.out
+#SBATCH --output=artifacts/tamia/logs/repnoise-native-attack-%A_%a.out
+#SBATCH --array=0-4
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --partition=gpubase_bynode_b1
@@ -38,8 +39,10 @@ UV_PROJECT_ENVIRONMENT="$attack_env" uv sync --project repnoise --frozen
 UV_PROJECT_ENVIRONMENT="$eval_env" uv sync --frozen
 
 # Authors' NL/NL setup.
+seeds=(1 2 3 4 5)
+seed=${seeds[${SLURM_ARRAY_TASK_ID:?submit with sbatch}]}
 defence_model_name="llama2-7b-beavertail--align-fft-repnoise-nl-alpha1.0-beta0.001"
-attack_model_name="$defence_model_name--attack-fft-author-codebase-nl-lr8e-5-ms250"
+attack_model_name="$defence_model_name--attack-fft-author-codebase-nl-lr8e-5-ms250-seed$seed"
 defence_model_path="artifacts/tamia/models/$defence_model_name"
 attack_model_path="artifacts/tamia/models/$attack_model_name"
 attack_results_path="artifacts/tamia/evals/$attack_model_name/results.json"
@@ -66,7 +69,9 @@ rm -rf -- "$attack_model_path" "$(dirname "$attack_results_path")"
         --learning-rate 8e-5 \
         --weight-decay 0.01 \
         --epochs 1 \
-        --max-steps 250
+        --max-steps 250 \
+        --seed "$seed" \
+        --shuffle
 )
 "$eval_env/bin/python" -m src.evals.evaluation \
     --model "$attack_model_path" \
