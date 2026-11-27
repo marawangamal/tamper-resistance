@@ -341,7 +341,7 @@ def construct_beavertails_dataset(
 
     # if refusal:
     refusal_ds = pd.read_json(
-        path_or_buf="./data/mremila_beavertails_with_refusals.json"
+        path_or_buf="./data/beavertails_with_refusals.json"
     )
     refusal_df = Dataset.from_pandas(refusal_ds)
     trainds = refusal_df
