@@ -6,10 +6,7 @@ from huggingface_hub import snapshot_download
 
 def main():
     snapshot_download(repo_id="lapisrocks/Llama-3-8B-Instruct-TAR-Bio-v2")
-    snapshot_download(
-        repo_id="NousResearch/Meta-Llama-3-8B-Instruct",
-        allow_patterns=["config.json", "tokenizer*", "special_tokens_map.json"],
-    )
+    snapshot_download(repo_id="NousResearch/Meta-Llama-3-8B-Instruct")
     load_dataset("lapisrocks/pile-bio", split="train")
     load_dataset("cais/wmdp", "wmdp-bio", split="test")
 
