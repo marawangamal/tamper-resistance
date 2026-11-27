@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=0
 #SBATCH --time=03:00:00
-#SBATCH --array=0-11
+#SBATCH --array=0-15
 set -euo pipefail
 
 # ============================================
@@ -58,7 +58,7 @@ attack_configs=(
     configs/wmdp/stages/1_relearn/llama3-8b-tar-bio-v2--attack-fft-new-config-1-adamw.yml
     configs/wmdp/stages/1_relearn/llama3-8b-tar-bio-v2--attack-fft-new-config-1-adamw-no-history.yml
 )
-attack_max_steps=(50 100 1000)
+attack_max_steps=(10 50 100 1000)
 index=${SLURM_ARRAY_TASK_ID:?submit with sbatch}
 optimizer_index=$((index / ${#attack_max_steps[@]}))
 steps_index=$((index % ${#attack_max_steps[@]}))
