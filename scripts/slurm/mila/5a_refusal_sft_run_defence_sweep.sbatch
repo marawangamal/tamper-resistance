@@ -149,8 +149,6 @@ for max_steps in "${attack_max_steps[@]}"; do
                 --output-dir "$artifacts_dir/mila/models/$attack_model_name" \
                 --learning-rate "$attack_lr" \
                 --max-steps "$max_steps" \
-                --micro-batch-size 1 \
-                --gradient-accumulation-steps 8 \
                 --wandb-name "$attack_model_name"
             "$attack_env/bin/python" -m src.evals.evaluation \
                 --model "$artifacts_dir/mila/models/$attack_model_name" \
