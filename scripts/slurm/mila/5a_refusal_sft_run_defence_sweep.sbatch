@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
 #SBATCH --time=1-00:00:00
-#SBATCH --array=0-4%1
+#SBATCH --array=0-4%4
 set -euo pipefail
 
 # ============================================
