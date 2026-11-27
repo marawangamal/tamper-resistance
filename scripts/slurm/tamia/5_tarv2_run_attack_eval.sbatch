@@ -92,9 +92,7 @@ fi
 
 # Restart only this incomplete attack.
 rm -rf -- "$attack_model_dir" "$attack_results_dir"
-"$attack_env/bin/accelerate" launch \
-    --multi_gpu \
-    --num_processes 4 -m axolotl.cli.train "$attack_config" \
+"$attack_env/bin/axolotl" train "$attack_config" --launcher python \
     --output-dir "$attack_model_dir" \
     --seed "$seed" \
     --data-seed "$seed" \
