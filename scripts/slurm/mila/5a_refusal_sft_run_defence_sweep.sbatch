@@ -2,9 +2,9 @@
 #SBATCH --job-name=refusal-sft-sweep
 #SBATCH --output=artifacts/mila/logs/refusal-sft-sweep-%A_%a.out
 #SBATCH --partition=long
-#SBATCH --gres=gpu:l40s:4
-#SBATCH --cpus-per-task=32
-#SBATCH --mem=256G
+#SBATCH --gres=gpu:a100l:1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=248G
 #SBATCH --time=1-00:00:00
 #SBATCH --array=0-4
 set -euo pipefail
@@ -133,7 +133,6 @@ fi
 rmdir "$attack_cache_lock"
 trap - EXIT
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3
 PYTHONHASHSEED=0 "$defence_env/bin/axolotl" train "$defence_config" \
     --launcher python
 
@@ -150,6 +149,8 @@ for max_steps in "${attack_max_steps[@]}"; do
                 --output-dir "$artifacts_dir/mila/models/$attack_model_name" \
                 --learning-rate "$attack_lr" \
                 --max-steps "$max_steps" \
+                --micro-batch-size 1 \
+                --gradient-accumulation-steps 8 \
                 --wandb-name "$attack_model_name"
             "$attack_env/bin/python" -m src.evals.evaluation \
                 --model "$artifacts_dir/mila/models/$attack_model_name" \
