@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=0
 #SBATCH --time=03:00:00
-#SBATCH --array=0-5
+#SBATCH --array=0-11
 set -euo pipefail
 
 # ============================================
@@ -46,10 +46,17 @@ base_model_name="llama3-8b-tar-bio-v2"
 seed=1
 
 # Inter-job sweep
-attack_variants=(adamw adamw-no-history)
+attack_variants=(
+    adamw
+    adamw-no-history
+    new-config-1-adamw
+    new-config-1-adamw-no-history
+)
 attack_configs=(
     configs/wmdp/stages/1_relearn/llama3-8b-tar-bio-v2--attack-fft-adamw.yml
     configs/wmdp/stages/1_relearn/llama3-8b-tar-bio-v2--attack-fft-adamw-no-history.yml
+    configs/wmdp/stages/1_relearn/llama3-8b-tar-bio-v2--attack-fft-new-config-1-adamw.yml
+    configs/wmdp/stages/1_relearn/llama3-8b-tar-bio-v2--attack-fft-new-config-1-adamw-no-history.yml
 )
 attack_max_steps=(50 100 1000)
 index=${SLURM_ARRAY_TASK_ID:?submit with sbatch}
