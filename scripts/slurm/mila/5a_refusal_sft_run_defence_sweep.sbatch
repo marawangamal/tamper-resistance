@@ -142,12 +142,9 @@ PYTHONHASHSEED=0 "$defence_env/bin/axolotl" train "$defence_config" \
     --results-path "$defence_results_path"
 
 for max_steps in "${attack_max_steps[@]}"; do
-    pids=()
-    for gpu in "${!attack_learning_rates[@]}"; do
-        attack_lr=${attack_learning_rates[gpu]}
+    for attack_lr in "${attack_learning_rates[@]}"; do
         attack_model_name="$defence_model_name--attack-fft-sp-adamw-no-hist-lr$attack_lr-ms$max_steps"
         (
-            export CUDA_VISIBLE_DEVICES=$gpu
             "$attack_env/bin/axolotl" train "$attack_config" --launcher python \
                 --base-model "$defence_model_path" \
                 --output-dir "$artifacts_dir/mila/models/$attack_model_name" \
@@ -158,16 +155,7 @@ for max_steps in "${attack_max_steps[@]}"; do
                 --model "$artifacts_dir/mila/models/$attack_model_name" \
                 --results-path "$artifacts_dir/mila/evals/$attack_model_name/results.json"
             rm -rf -- "$artifacts_dir/mila/models/$attack_model_name"
-        ) >> "artifacts/mila/logs/$attack_model_name.log" 2>&1 &
-        pids+=("$!")
+        ) >> "artifacts/mila/logs/$attack_model_name.log" 2>&1
     done
-
-    failed=0
-    for pid in "${pids[@]}"; do
-        wait "$pid" || failed=1
-    done
-    if (( failed )); then
-        exit "$failed"
-    fi
 done
 rm -rf -- "$defence_model_path"
