@@ -1,0 +1,39 @@
+base_model: lapisrocks/Llama-3-8B-Instruct-TAR-Bio-v2
+tokenizer_config: meta-llama/Meta-Llama-3-8B-Instruct
+datasets:
+- path: lapisrocks/pile-bio
+  split: train
+  type: data.pile_bio_loader
+shuffle_before_merging_datasets: false
+shuffle_merged_datasets: false
+dataset_num_proc: 8
+dataset_prepared_path: artifacts/tamia/cache/axolotl/llama3-8b-tar-bio-v2--attack-fft-pile-bio/prepared
+val_set_size: 0.0
+output_dir: artifacts/tamia/models/llama3-8b-tar-bio-v2--attack-fft-adamw
+sequence_len: 256
+sample_packing: false
+pad_to_sequence_len: true
+remove_unused_columns: true
+train_on_inputs: true
+micro_batch_size: 4
+gradient_accumulation_steps: 2
+learning_rate: 2.0e-5
+optimizer: adamw_torch
+weight_decay: 0.01
+lr_scheduler: constant
+warmup_steps: 0
+max_grad_norm: 1.0
+bf16: true
+tf32: false
+gradient_checkpointing: true
+deepspeed: configs/deepspeed/zero3-bf16.json
+seed: 1
+data_seed: 1
+eval_strategy: 'no'
+save_strategy: 'no'
+save_only_model: true
+logging_steps: 1
+wandb_project: tamper-resistance
+use_wandb: true
+wandb_name: llama3-8b-tar-bio-v2--attack-fft-adamw
+max_steps: 1000
