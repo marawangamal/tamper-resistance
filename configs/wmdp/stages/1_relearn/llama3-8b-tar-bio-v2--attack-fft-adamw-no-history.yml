@@ -1,5 +1,5 @@
 base_model: lapisrocks/Llama-3-8B-Instruct-TAR-Bio-v2
-tokenizer_config: meta-llama/Meta-Llama-3-8B-Instruct
+tokenizer_config: NousResearch/Meta-Llama-3-8B-Instruct
 datasets:
 - path: lapisrocks/pile-bio
   split: train

@@ -41,7 +41,7 @@ UV_PROJECT_ENVIRONMENT="$attack_env" uv sync --frozen
 
 # Inputs
 base_model_name_or_path="lapisrocks/Llama-3-8B-Instruct-TAR-Bio-v2"
-tokenizer_name_or_path="meta-llama/Meta-Llama-3-8B-Instruct"
+tokenizer_name_or_path="NousResearch/Meta-Llama-3-8B-Instruct"
 base_model_name="llama3-8b-tar-bio-v2"
 seed=1
 
