@@ -43,6 +43,7 @@ UV_PROJECT_ENVIRONMENT="$attack_env" uv sync --frozen
 base_model_name_or_path="lapisrocks/Llama-3-8B-Instruct-TAR-Bio-v2"
 tokenizer_name_or_path="NousResearch/Meta-Llama-3-8B-Instruct"
 base_model_name="llama3-8b-tar-bio-v2"
+attack_learning_rate=${1:-2e-5}
 seed=1
 
 # Inter-job sweep
@@ -65,7 +66,7 @@ steps_index=$((index % ${#attack_max_steps[@]}))
 attack_variant=${attack_variants[optimizer_index]}
 attack_config=${attack_configs[optimizer_index]}
 max_steps=${attack_max_steps[steps_index]}
-attack_model_name="$base_model_name--attack-fft-$attack_variant-lr2e-5-ms$max_steps-s$seed"
+attack_model_name="$base_model_name--attack-fft-$attack_variant-lr$attack_learning_rate-ms$max_steps-s$seed"
 attack_model_dir="$artifacts_dir/tamia/models/$attack_model_name"
 attack_results_dir="$artifacts_dir/tamia/evals/$attack_model_name"
 
@@ -107,6 +108,7 @@ rm -rf -- "$attack_model_dir" "$attack_results_dir"
     --output-dir "$attack_model_dir" \
     --seed "$seed" \
     --data-seed "$seed" \
+    --learning-rate "$attack_learning_rate" \
     --max-steps "$max_steps" \
     --wandb-name "$attack_model_name"
 
