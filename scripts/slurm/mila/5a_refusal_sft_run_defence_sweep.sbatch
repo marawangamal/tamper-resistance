@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=refusal-sft-sweep
 #SBATCH --output=artifacts/mila/logs/refusal-sft-sweep-%A_%a.out
-#SBATCH --partition=main
+#SBATCH --partition=long
 #SBATCH --gres=gpu:a100l:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
