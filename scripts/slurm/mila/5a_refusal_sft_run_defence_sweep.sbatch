@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=refusal-sft-sweep
 #SBATCH --output=artifacts/mila/logs/refusal-sft-sweep-%A_%a.out
-#SBATCH --partition=long
+#SBATCH --partition=main
 #SBATCH --gres=gpu:a100l:1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=248G
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=48G
 #SBATCH --time=1-00:00:00
-#SBATCH --array=0-4
+#SBATCH --array=0-4%1
 set -euo pipefail
 
 # ============================================
