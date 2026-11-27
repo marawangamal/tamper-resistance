@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=0
 #SBATCH --time=03:00:00
-#SBATCH --array=0
+#SBATCH --array=0-1
 set -euo pipefail
 
 # ============================================
@@ -43,14 +43,14 @@ mkdir -p "$WANDB_DIR" artifacts/tamia/logs
 
 # Inputs
 defence_config="configs/beavertails/seam/train-paper.yml"
-attack_config=${1:-configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp.yml}
+attack_config=${1:-configs/beavertails/stages/1_attack/llama2-7b--attack-fft-seam-sp-ordered.yml}
 defence_format=${2:-space}
-attack_variant=${3:-}
+attack_variant=${3:-ordered}
 attack_learning_rate=${4:-}
 
 # Inter-job sweep
-DEFENCE_UP_COEFFS=(1.0) # Utility preservation weight (author default)
-DEFENCE_SD_COEFFS=(0.01) # Self-destruct loss weight (author default)
+DEFENCE_UP_COEFFS=(1.0 0.1)
+DEFENCE_SD_COEFFS=(0.1)
 
 # Intra-job sweep
 if [[ -n "$attack_learning_rate" ]]; then
