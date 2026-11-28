@@ -73,6 +73,13 @@ if __name__ == "__main__":
         lambda row: "NL" if row["Format"] == "NL" else f"{row['sd']:g}",
         axis=1,
     )
+    selected = df[
+        (df["Format"] == "SP")
+        & np.isclose(df["sd"], 1.0)
+        & np.isclose(df["up"], 0.01)
+    ]
+    if len(selected) != 1:
+        raise ValueError(f"Expected one selected configuration, found {len(selected)}")
 
     sns.set_theme(context="paper", style="ticks", font_scale=1.0)
     figure, axes = plt.subplots(1, 3, figsize=(12.5, 3.5))
@@ -98,6 +105,16 @@ if __name__ == "__main__":
             edgecolor="black",
             linewidth=0.7,
             ax=axis,
+        )
+        axis.scatter(
+            selected[x_metric],
+            selected[y_metric],
+            s=220,
+            facecolors="none",
+            edgecolors="crimson",
+            linewidths=1.8,
+            label="Selected (sd=1, up=0.01)",
+            zorder=3,
         )
         axis.set_xlabel(AXIS_LABELS[x_metric])
         axis.set_ylabel(AXIS_LABELS[y_metric])
