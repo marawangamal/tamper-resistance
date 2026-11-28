@@ -119,7 +119,7 @@ if __name__ == "__main__":
         x="Attack steps",
         y="Score (%)",
         hue="Method",
-        row="Eval",
+        col="Eval",
         order=attack_max_steps,
         kind="point",
         errorbar=None,
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     )
     grid.set(ylim=(0, 100))
     grid.set_axis_labels("Attack steps", "Score (%)")
-    grid.set_titles("{row_name} | Worst-case LR")
+    grid.set_titles("{col_name} | Worst-case LR")
     grid.figure.savefig(
         "artifacts/figures/llama2-7b--worst-case-lr-trajectory.pdf",
         bbox_inches="tight",
