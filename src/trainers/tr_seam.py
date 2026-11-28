@@ -9,13 +9,13 @@ INP_FIELDS = ("input_ids", "attention_mask", "labels")
 
 
 class SEAMAttackBaseTrainer(AxolotlTrainer):
+    # NOTE: dropout must be off for seam trainer to properly work
     def __init__(
         self,
         *args,
         source_id_cosim_a,
         source_id_cosim_b,
         eps_finite_diff=1e-3,
-        eps_norm_div=1e-8,
         **kwargs,
     ):
         if source_id_cosim_a == source_id_cosim_b:
@@ -23,8 +23,20 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
         super().__init__(*args, **kwargs)
         self.source_id_cosim_a = source_id_cosim_a
         self.source_id_cosim_b = source_id_cosim_b
-        self.eps_norm_div = eps_norm_div
         self.eps_finite_diff = eps_finite_diff
+
+        for key, value in self.model.config.to_dict().items():
+            if (
+                ("dropout" in key.lower() or "pdrop" in key.lower())
+                and isinstance(value, (int, float))
+                and value != 0
+            ):
+                raise ValueError(f"SEAM requires dropout disabled: {key}={value}")
+
+        # LoRA dropout is configured separately.
+        for config in getattr(self.model, "peft_config", {}).values():
+            if config.lora_dropout != 0:
+                raise ValueError("SEAM requires lora_dropout=0")
 
     def _get_train_sampler(self, train_dataset=None):
         """Draw equally from the configured forget and retain sources."""
@@ -88,7 +100,7 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
                 )
             )
             norm_i = dict_dot(g_theta_i, g_theta_i, dtype=dtype).sqrt()
-            denom_i = norm_i + self.eps_norm_div
+            denom_i = norm_i
             for name, p in theta.items():
                 m[name] += g_theta_i[name].to(dtype) / (n * denom_i.to(p.device))
 
@@ -98,8 +110,6 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
         self, model, inputs, compute_loss_only=False, return_layerwise=False
     ):
         """Cosine between the batch CE gradients of two sources."""
-        if not compute_loss_only:
-            raise NotImplementedError("Cross-source cosine supports tracking only")
         B = len(inputs["labels"])
         if B < 2:
             raise ValueError("Cross-source cosine requires at least two examples")
@@ -135,21 +145,87 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
 
         norm_a = dict_dot(grad_a, grad_a, dtype=dtype).sqrt()
         norm_b = dict_dot(grad_b, grad_b, dtype=dtype).sqrt()
-        cosim = dict_dot(grad_a, grad_b, dtype=dtype) / (
-            norm_a * norm_b + self.eps_norm_div
-        )
-        if not return_layerwise:
+        cosim = dict_dot(grad_a, grad_b, dtype=dtype) / (norm_a * norm_b)
+
+        if compute_loss_only:
+            if return_layerwise:
+                cosims_layerwise = self._compute_loss_cosim_of_batch_grads_layerwise(
+                    grad_a, grad_b, norm_a, norm_b, dtype
+                )
+                return cosim, cosims_layerwise
             return cosim
 
-        cosims_layerwise = self._compute_loss_cosim_of_batch_grads_layerwise(
-            grad_a, grad_b, norm_a, norm_b, dtype
+        batches = (batch_a, batch_b)
+        grads = [grad_a, grad_b]
+
+        def grad_fn(params, i):
+            # _get_grad_sd passes detached tensors; enable gradients here.
+            params = {k: v.detach().requires_grad_(True) for k, v in params.items()}
+            loss = torch.func.functional_call(
+                model, params, (), batches[i], strict=False
+            ).loss
+            values = torch.autograd.grad(loss, tuple(params.values()))
+            return dict(zip(params, values))
+
+        grad_sd = self._get_grad_sd(
+            theta,
+            grads,
+            self.eps_finite_diff,
+            grad_fn,
         )
-        return cosim, cosims_layerwise
+
+        surrogate = sum(
+            (theta[k].to(dtype) * grad_sd[k].detach().to(dtype)).sum() for k in theta
+        )
+
+        if return_layerwise:
+            cosims_layerwise = self._compute_loss_cosim_of_batch_grads_layerwise(
+                grad_a, grad_b, norm_a, norm_b, dtype
+            )
+            return cosim + (surrogate - surrogate.detach()), cosims_layerwise
+
+        # Forward value: cosim. Backward gradient: grad_sd.
+        return cosim + (surrogate - surrogate.detach())
+
+    @staticmethod
+    def _get_grad_sd(theta, grads, eps, grad_fn):
+        # grad_fn(theta, i) returns a gradient dict for loss i.
+        N = len(grads)
+        if N < 2 or eps <= 0:
+            raise ValueError("Require N >= 2 and eps > 0.")
+
+        def dot(a, b):
+            return sum((a[k] * b[k]).sum() for k in theta)
+
+        dtype = next(iter(theta.values())).dtype
+        if dtype in (torch.float16, torch.bfloat16):
+            dtype = torch.float32
+
+        grads = [{k: g[k].detach().to(dtype) for k in theta} for g in grads]
+
+        norms = [dot(g, g).sqrt() for g in grads]
+        if any(r.item() == 0 for r in norms):
+            raise ValueError("Cosine similarity requires nonzero gradients.")
+
+        units = [{k: g[k] / r for k in theta} for g, r in zip(grads, norms)]
+        m = {k: sum(u[k] for u in units) for k in theta}
+
+        grad_sd = {k: torch.zeros_like(grads[0][k]) for k in theta}
+        for i, (ui, ri) in enumerate(zip(units, norms)):
+            projection = dot(ui, m)
+            di = {k: m[k] - projection * ui[k] for k in theta}
+            grad_shifted = grad_fn(
+                {k: theta[k].detach() + eps * di[k] for k in theta}, i
+            )
+            for k in theta:
+                grad_sd[k] += (grad_shifted[k].detach().to(dtype) - grads[i][k]) / ri
+
+        return {k: (2 / (N * (N - 1) * eps)) * g for k, g in grad_sd.items()}
 
     def _compute_loss_cosim_of_batch_grads_layerwise(
         self, grad_a, grad_b, norm_a, norm_b, dtype, suffix=""
     ):
-        global_denom = norm_a * norm_b + self.eps_norm_div
+        global_denom = norm_a * norm_b
         layer_stats = {}
         for name in grad_a:
             parts = name.split(".")
@@ -178,7 +254,7 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
         cosims_layerwise = {}
         for layer, (dot, norm_a_sq, norm_b_sq) in layer_stats.items():
             cosims_layerwise[f"cosim_of_batch_grads{suffix}/{layer}"] = dot / (
-                norm_a_sq.sqrt() * norm_b_sq.sqrt() + self.eps_norm_div
+                norm_a_sq.sqrt() * norm_b_sq.sqrt()
             )
             cosims_layerwise[f"cosim_contribution{suffix}/{layer}"] = (
                 dot / global_denom.to(dot.device)
@@ -226,9 +302,7 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
 
         norm_a = dict_dot(grad_a, grad_a).sqrt()
         norm_b = dict_dot(grad_b, grad_b, dtype=dtype).sqrt()
-        cosim = dict_dot(grad_a, grad_b, dtype=dtype) / (
-            norm_a * norm_b + self.eps_norm_div
-        )
+        cosim = dict_dot(grad_a, grad_b, dtype=dtype) / (norm_a * norm_b)
         if not return_layerwise:
             return cosim
 
@@ -280,7 +354,7 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
 
         norm_a = dict_dot(m_a, m_a).sqrt()
         norm_b = dict_dot(m_b, m_b).sqrt()
-        return dict_dot(m_a, m_b) / (norm_a * norm_b + self.eps_norm_div)
+        return dict_dot(m_a, m_b) / (norm_a * norm_b)
 
     def compute_loss_cosim_of_avgs_signed(self, model, inputs, compute_loss_only=False):
         """Cosine between the signed mean forget gradient and mean retain gradient."""
@@ -328,7 +402,7 @@ class SEAMAttackBaseTrainer(AxolotlTrainer):
         m_a = {name: value.sign() for name, value in m_a.items()}
         norm_a = dict_dot(m_a, m_a).sqrt()
         norm_b = dict_dot(m_b, m_b).sqrt()
-        return dict_dot(m_a, m_b) / (norm_a * norm_b + self.eps_norm_div)
+        return dict_dot(m_a, m_b) / (norm_a * norm_b)
 
     def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
         batch = {field: inputs[field] for field in INP_FIELDS}
