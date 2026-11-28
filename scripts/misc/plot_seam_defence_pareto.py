@@ -68,28 +68,22 @@ if __name__ == "__main__":
         "Pareto",
         "Dominated",
     )
-    df["up coefficient"] = df["up"].map(lambda value: f"{value:g}")
-    df["sd coefficient"] = df.apply(
-        lambda row: "NL" if row["Format"] == "NL" else f"{row['sd']:g}",
-        axis=1,
-    )
+    df["Response format"] = df["Format"].map({"SP": "SP/SP", "NL": "NL/NL"})
 
     sns.set_theme(context="paper", style="ticks", font_scale=1.0)
     figure, axes = plt.subplots(1, 3, figsize=(12.5, 3.5))
-    palette = dict(
-        zip(["0.01", "0.1", "1", "5"], sns.color_palette("viridis", 4))
-    )
-    sd_order = ["0.01", "0.1", "1", "5", "NL"]
-    markers = {"0.01": "o", "0.1": "s", "1": "^", "5": "D", "NL": "X"}
+    format_order = ["SP/SP", "NL/NL"]
+    palette = dict(zip(format_order, sns.color_palette("colorblind", 2)))
+    markers = {"SP/SP": "o", "NL/NL": "X"}
     for axis, (x_metric, y_metric) in zip(axes, PANELS):
         sns.scatterplot(
             data=df,
             x=x_metric,
             y=y_metric,
-            hue="up coefficient",
-            hue_order=["0.01", "0.1", "1", "5"],
-            style="sd coefficient",
-            style_order=sd_order,
+            hue="Response format",
+            hue_order=format_order,
+            style="Response format",
+            style_order=format_order,
             size="Pareto status",
             size_order=["Dominated", "Pareto"],
             sizes={"Dominated": 55, "Pareto": 110},
@@ -121,7 +115,7 @@ if __name__ == "__main__":
         labels,
         loc="upper center",
         bbox_to_anchor=(0.5, 0.91),
-        ncols=8,
+        ncols=6,
         frameon=False,
         fontsize=8,
     )
