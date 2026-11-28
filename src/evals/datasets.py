@@ -340,7 +340,7 @@ def construct_beavertails_dataset(
     #     trainds = load_dataset("PKU-Alignment/BeaverTails", data_dir='../datasets', split="30k_train")
 
     # if refusal:
-    refusal_ds = pd.read_json(path_or_buf='./data/beavertails_with_refusals.json')
+    refusal_ds = pd.read_json(path_or_buf='./data/beavertails_with_refusals_train.json')
     refusal_df = Dataset.from_pandas(refusal_ds)
     trainds = refusal_df
 
