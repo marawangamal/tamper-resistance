@@ -9,6 +9,12 @@ import seaborn as sns
 
 if __name__ == "__main__":
     rootdir = "artifacts/tamia/evals"
+    scratch = os.environ.get("SCRATCH")
+    mila_rootdir = (
+        osp.join(scratch, "tamper-resistance/artifacts/mila/evals")
+        if scratch
+        else "artifacts/mila/evals"
+    )
     outpath = "artifacts/figures/llama2-7b--lr-trajectory.pdf"
     attack_max_steps = [0, 5, 10, 50, 100]
     configs = [
@@ -31,6 +37,12 @@ if __name__ == "__main__":
             "path": "Llama-2-7b-chat-hf",
             "name": "Base",
         },
+        {
+            "path": "llama2-7b--align-fft-refusal-sft-sp-n4000",
+            "name": "SFT (4k)",
+            "rootdir": mila_rootdir,
+            "attack": "--attack-fft-sp-adamw-no-hist-lr{lr}-ms{steps}",
+        },
     ]
     learning_rates = ["5e-5", "8e-5", "1e-4", "2e-4"]
     task_metrics = {
@@ -50,7 +62,9 @@ if __name__ == "__main__":
                         "attack", "--attack-fft-sp-lr{lr}-ms{steps}"
                     ).format(lr=lr, steps=steps)
                 with open(
-                    osp.join(rootdir, model, "results.json")
+                    osp.join(
+                        cfg.get("rootdir", rootdir), model, "results.json"
+                    )
                 ) as handle:
                     result = json.load(handle)
                 capability = sum(
@@ -79,6 +93,7 @@ if __name__ == "__main__":
         "SEAM": colors[0],
         "RepNoise": colors[1],
         "SDD": colors[2],
+        "SFT (4k)": colors[3],
     }
     grid = sns.catplot(
         data=df,
