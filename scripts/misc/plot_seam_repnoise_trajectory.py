@@ -103,3 +103,39 @@ if __name__ == "__main__":
         dpi=200,
         bbox_inches="tight",
     )
+
+    harmfulness = df[df["Eval"] == "Harmfulness ↓"]
+    worst_lrs = harmfulness.loc[
+        harmfulness.groupby(["Method", "Attack steps"])["Score (%)"].idxmax(),
+        ["Method", "Attack steps", "LR"],
+    ]
+    worst_case = df.merge(
+        worst_lrs,
+        on=["Method", "Attack steps", "LR"],
+        validate="many_to_one",
+    )
+    grid = sns.catplot(
+        data=worst_case,
+        x="Attack steps",
+        y="Score (%)",
+        hue="Method",
+        row="Eval",
+        order=attack_max_steps,
+        kind="point",
+        errorbar=None,
+        palette=palette,
+        height=3,
+        aspect=1.3,
+    )
+    grid.set(ylim=(0, 100))
+    grid.set_axis_labels("Attack steps", "Score (%)")
+    grid.set_titles("{row_name} | Worst-case LR")
+    grid.figure.savefig(
+        "artifacts/figures/llama2-7b--worst-case-lr-trajectory.pdf",
+        bbox_inches="tight",
+    )
+    grid.figure.savefig(
+        "artifacts/figures-png/llama2-7b--worst-case-lr-trajectory.png",
+        dpi=200,
+        bbox_inches="tight",
+    )
