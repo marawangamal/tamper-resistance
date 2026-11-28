@@ -104,9 +104,18 @@ if __name__ == "__main__":
         bbox_inches="tight",
     )
 
-    harmfulness = df[df["Eval"] == "Harmfulness ↓"]
-    worst_lrs = harmfulness.loc[
-        harmfulness.groupby(["Method", "Attack steps"])["Score (%)"].idxmax(),
+    attack_scores = df.pivot(
+        index=["Method", "LR", "Attack steps"],
+        columns="Eval",
+        values="Score (%)",
+    ).reset_index()
+    attack_scores["Attack score"] = (
+        attack_scores["Harmfulness ↓"] * attack_scores["Capability ↑"]
+    )
+    worst_lrs = attack_scores.loc[
+        attack_scores.groupby(["Method", "Attack steps"])[
+            "Attack score"
+        ].idxmax(),
         ["Method", "Attack steps", "LR"],
     ]
     worst_case = df.merge(
@@ -129,7 +138,7 @@ if __name__ == "__main__":
     )
     grid.set(ylim=(0, 100))
     grid.set_axis_labels("Attack steps", "Score (%)")
-    grid.set_titles("{col_name} | Worst-case LR")
+    grid.set_titles("{col_name}\n(max harm. × cap. LR)")
     grid.figure.savefig(
         "artifacts/figures/llama2-7b--worst-case-lr-trajectory.pdf",
         bbox_inches="tight",
